@@ -37,3 +37,11 @@ Do not paste secrets or real customer data (PII) into prompts or this file.
 - My changes: _TBD_
 - Verification: manual read-through
 - Commit: _TBD_
+
+## 2026-11-07 – App scaffold (Next.js dashboard + Mixpanel client)
+- Tool: Claude Code (Sonnet 5.5), Mixpanel MCP for project discovery
+- Prompt: "Create app to authenticate and get dashboard data from mixpanel"
+- AI output: Next.js scaffold, Mixpanel Export API client, analytics modules, `/api/dashboard` route, dashboard UI, 24 unit tests
+- My changes: _TBD_
+- Verification: `npm test` (24 pass), `npm run lint`, `tsc --noEmit`, `npm run build`, curl smoke test (400 on bad window, handled 500 without credentials). Not yet verified against live Mixpanel data.
+- Commit: _TBD_
