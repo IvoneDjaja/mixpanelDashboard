@@ -50,3 +50,28 @@ export async function loadEventsFromFile(files: string): Promise<MixpanelEvent[]
   );
   return all.flat();
 }
+
+/** Where dashboard events come from. */
+export type DataSource = "file" | "api";
+
+/**
+ * Chooses the event source from environment variables.
+ * MIXPANEL_DATA_SOURCE=api|file forces a source; when unset, "file" is used if
+ * MIXPANEL_EVENTS_FILE is set, otherwise "api".
+ * @param env - Environment to read from (defaults to process.env).
+ * @returns The source to use.
+ * @throws MixpanelError of kind "config" for an invalid value or "file" without MIXPANEL_EVENTS_FILE.
+ */
+export function resolveDataSource(
+  env: Record<string, string | undefined> = process.env,
+): DataSource {
+  const requested = env.MIXPANEL_DATA_SOURCE?.trim().toLowerCase();
+  if (requested && requested !== "api" && requested !== "file") {
+    throw new MixpanelError("config", "MIXPANEL_DATA_SOURCE must be api or file");
+  }
+  const source = (requested as DataSource | undefined) ?? (env.MIXPANEL_EVENTS_FILE ? "file" : "api");
+  if (source === "file" && !env.MIXPANEL_EVENTS_FILE) {
+    throw new MixpanelError("config", "MIXPANEL_DATA_SOURCE=file requires MIXPANEL_EVENTS_FILE");
+  }
+  return source;
+}

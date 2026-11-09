@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import { MixpanelError } from "./client";
-import { loadEventsFromFile, parseEventsFile } from "./fixture";
+import { loadEventsFromFile, parseEventsFile, resolveDataSource } from "./fixture";
 
 describe("parseEventsFile", () => {
   it("parses a JSON array", () => {
@@ -23,5 +23,23 @@ describe("loadEventsFromFile", () => {
   });
   it("raises a config error for a missing file", async () => {
     await expect(loadEventsFromFile("does-not-exist.json")).rejects.toMatchObject({ kind: "config" });
+  });
+});
+
+describe("resolveDataSource", () => {
+  it("defaults to api without an events file", () => {
+    expect(resolveDataSource({})).toBe("api");
+  });
+  it("defaults to file when an events file is set", () => {
+    expect(resolveDataSource({ MIXPANEL_EVENTS_FILE: "a.json" })).toBe("file");
+  });
+  it("lets api override a configured events file", () => {
+    expect(resolveDataSource({ MIXPANEL_DATA_SOURCE: "api", MIXPANEL_EVENTS_FILE: "a.json" })).toBe("api");
+  });
+  it("rejects file without an events file", () => {
+    expect(() => resolveDataSource({ MIXPANEL_DATA_SOURCE: "file" })).toThrow(/MIXPANEL_EVENTS_FILE/);
+  });
+  it("rejects unknown values", () => {
+    expect(() => resolveDataSource({ MIXPANEL_DATA_SOURCE: "csv" })).toThrow(/api or file/);
   });
 });

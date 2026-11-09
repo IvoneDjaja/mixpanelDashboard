@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchEvents, MixpanelError } from "@/lib/mixpanel/client";
-import { loadEventsFromFile } from "@/lib/mixpanel/fixture";
+import { loadEventsFromFile, resolveDataSource } from "@/lib/mixpanel/fixture";
 import { buildDashboard } from "@/lib/analytics/dashboard";
 import { toDateString, validateDashboardQuery, WINDOWS } from "@/lib/validation";
 
@@ -38,10 +38,9 @@ export async function GET(request: Request) {
   const since = now - WINDOWS[window];
 
   try {
-    // Local file source (UAT/dev) takes precedence over the Mixpanel API.
-    const eventsFile = process.env.MIXPANEL_EVENTS_FILE;
-    const events = eventsFile
-      ? await loadEventsFromFile(eventsFile)
+    // MIXPANEL_DATA_SOURCE picks local files (UAT/dev) or the Mixpanel API.
+    const events = resolveDataSource() === "file"
+      ? await loadEventsFromFile(process.env.MIXPANEL_EVENTS_FILE!)
       : await fetchEvents({ from: toDateString(since), to: toDateString(now) });
     return NextResponse.json(buildDashboard(events, window, since, capability));
   } catch (error) {
