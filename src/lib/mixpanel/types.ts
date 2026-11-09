@@ -20,8 +20,11 @@ export type MixpanelRegion = "us" | "eu" | "in";
 
 /** Server-side Mixpanel connection settings. */
 export interface MixpanelConfig {
-  user: string;
+  /** Service account username; absent when authenticating with the legacy project API Secret. */
+  user?: string;
+  /** Service account secret, or the project API Secret when `user` is absent. */
   secret: string;
-  projectId: string;
+  /** Required for service accounts; optional with the project API Secret. */
+  projectId?: string;
   region: MixpanelRegion;
 }

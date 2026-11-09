@@ -31,6 +31,8 @@ export class MixpanelError extends Error {
 
 /**
  * Reads Mixpanel settings from environment variables.
+ * Uses a service account (MIXPANEL_SERVICE_ACCOUNT_USER/SECRET + MIXPANEL_PROJECT_ID)
+ * when configured, otherwise falls back to the legacy project API Secret (MIXPANEL_API_SECRET).
  * @param env - Environment to read from (defaults to process.env).
  * @returns Validated configuration.
  * @throws MixpanelError of kind "config" when a variable is missing or invalid.
@@ -40,8 +42,17 @@ export function getMixpanelConfig(
 ): MixpanelConfig {
   const user = env.MIXPANEL_SERVICE_ACCOUNT_USER;
   const secret = env.MIXPANEL_SERVICE_ACCOUNT_SECRET;
+  const apiSecret = env.MIXPANEL_API_SECRET;
   const projectId = env.MIXPANEL_PROJECT_ID;
   const region = (env.MIXPANEL_REGION ?? "us") as MixpanelRegion;
+
+  if (!(region in EXPORT_HOSTS)) {
+    throw new MixpanelError("config", "MIXPANEL_REGION must be us, eu or in");
+  }
+
+  if (!user && !secret && apiSecret) {
+    return { secret: apiSecret, projectId: projectId || undefined, region };
+  }
 
   const missing = [
     !user && "MIXPANEL_SERVICE_ACCOUNT_USER",
@@ -49,10 +60,7 @@ export function getMixpanelConfig(
     !projectId && "MIXPANEL_PROJECT_ID",
   ].filter(Boolean);
   if (missing.length > 0) {
-    throw new MixpanelError("config", `Missing env: ${missing.join(", ")}`);
-  }
-  if (!(region in EXPORT_HOSTS)) {
-    throw new MixpanelError("config", "MIXPANEL_REGION must be us, eu or in");
+    throw new MixpanelError("config", `Missing env: ${missing.join(", ")} (or set MIXPANEL_API_SECRET)`);
   }
   return { user: user!, secret: secret!, projectId: projectId!, region };
 }
@@ -83,11 +91,13 @@ export async function fetchEvents(
   fetchImpl: typeof fetch = fetch,
 ): Promise<MixpanelEvent[]> {
   const url = new URL("/api/2.0/export", EXPORT_HOSTS[config.region]);
-  url.searchParams.set("project_id", config.projectId);
+  if (config.projectId) url.searchParams.set("project_id", config.projectId);
   url.searchParams.set("from_date", range.from);
   url.searchParams.set("to_date", range.to);
 
-  const authorization = `Basic ${Buffer.from(`${config.user}:${config.secret}`).toString("base64")}`;
+  // Service account: user:secret. Legacy API Secret: secret as username, empty password.
+  const credentials = config.user ? `${config.user}:${config.secret}` : `${config.secret}:`;
+  const authorization = `Basic ${Buffer.from(credentials).toString("base64")}`;
 
   let response: Response;
   try {

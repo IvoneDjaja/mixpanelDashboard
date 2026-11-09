@@ -14,6 +14,22 @@ describe("getMixpanelConfig", () => {
       /MIXPANEL_SERVICE_ACCOUNT_USER, MIXPANEL_SERVICE_ACCOUNT_SECRET/,
     );
   });
+  it("falls back to the project API Secret when no service account is set", () => {
+    expect(getMixpanelConfig({ MIXPANEL_API_SECRET: "k", MIXPANEL_REGION: "eu" })).toEqual({
+      secret: "k",
+      projectId: undefined,
+      region: "eu",
+    });
+  });
+  it("prefers the service account when both are configured", () => {
+    const cfg = getMixpanelConfig({
+      MIXPANEL_SERVICE_ACCOUNT_USER: "u",
+      MIXPANEL_SERVICE_ACCOUNT_SECRET: "s",
+      MIXPANEL_PROJECT_ID: "1",
+      MIXPANEL_API_SECRET: "k",
+    });
+    expect(cfg.user).toBe("u");
+  });
   it("rejects an unknown region", () => {
     expect(() =>
       getMixpanelConfig({
@@ -42,6 +58,13 @@ describe("fetchEvents", () => {
     expect(String(url)).toContain("project_id=1");
     expect(init.headers.Authorization).toBe(`Basic ${Buffer.from("u:s").toString("base64")}`);
     expect(events).toHaveLength(1);
+  });
+  it("authenticates with the API Secret as username and empty password", async () => {
+    const f = fakeFetch(200, '{"event":"a","properties":{"time":1}}');
+    await fetchEvents(range, { secret: "k", region: "eu" }, f);
+    const [url, init] = (f as jest.Mock).mock.calls[0];
+    expect(String(url)).not.toContain("project_id");
+    expect(init.headers.Authorization).toBe(`Basic ${Buffer.from("k:").toString("base64")}`);
   });
   it.each([
     [401, "auth"],
