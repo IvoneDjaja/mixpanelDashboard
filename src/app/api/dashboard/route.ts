@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchEvents, MixpanelError } from "@/lib/mixpanel/client";
+import { loadEventsFromFile } from "@/lib/mixpanel/fixture";
 import { buildDashboard } from "@/lib/analytics/dashboard";
 import { toDateString, validateDashboardQuery, WINDOWS } from "@/lib/validation";
 
@@ -37,7 +38,11 @@ export async function GET(request: Request) {
   const since = now - WINDOWS[window];
 
   try {
-    const events = await fetchEvents({ from: toDateString(since), to: toDateString(now) });
+    // Local file source (UAT/dev) takes precedence over the Mixpanel API.
+    const eventsFile = process.env.MIXPANEL_EVENTS_FILE;
+    const events = eventsFile
+      ? await loadEventsFromFile(eventsFile)
+      : await fetchEvents({ from: toDateString(since), to: toDateString(now) });
     return NextResponse.json(buildDashboard(events, window, since, capability));
   } catch (error) {
     if (error instanceof MixpanelError) {
