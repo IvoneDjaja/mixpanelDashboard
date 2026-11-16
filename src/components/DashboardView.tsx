@@ -13,6 +13,7 @@ import {
 } from "@/lib/validation";
 import { DEFAULT_PAGE_SIZE, type PageSize } from "@/lib/pagination";
 import { PaginatedTable } from "./PaginatedTable";
+import { LeftPane } from "./LeftPane";
 import { Pagination } from "./Pagination";
 import { StateMessage } from "./StateMessage";
 
@@ -22,6 +23,9 @@ const WINDOW_LABELS: Record<WindowKey, string> = {
   "24h": "Last 24 hours",
   "30d": "Last 30 days",
 };
+
+/** Items listed in the left pane; the first is shown by default. */
+const NAV_ITEMS = [{ id: "events", label: "Events" }];
 
 type Status = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ok"; data: DashboardData };
 
@@ -53,6 +57,7 @@ export function DashboardView() {
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE as PageSize,
   });
+  const [activeItem, setActiveItem] = useState(NAV_ITEMS[0].id);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const filtersDirty =
     pending.window !== applied.window ||
@@ -87,6 +92,9 @@ export function DashboardView() {
   const data = status.kind === "ok" ? status.data : null;
 
   return (
+    <div className="shell">
+      <LeftPane items={NAV_ITEMS} activeId={activeItem} onSelect={setActiveItem} />
+      {activeItem === "events" && (
     <main className="dashboard">
       <header>
         <h1>Pruservices Customer Journey</h1>
@@ -200,5 +208,7 @@ export function DashboardView() {
         </>
       )}
     </main>
+      )}
+    </div>
   );
 }

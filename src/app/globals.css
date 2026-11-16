@@ -1,6 +1,11 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, sans-serif; background: #f6f7f9; color: #1a1d21; }
-.dashboard { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.shell { display: flex; align-items: stretch; min-height: 100vh; }
+.left-pane { width: 200px; flex-shrink: 0; background: #fff; border-right: 1px solid #eceef1; padding: 24px 12px; }
+.left-pane ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.left-pane button { width: 100%; text-align: left; border: none; border-radius: 6px; background: transparent; }
+.left-pane button.active { background: #ed1b2e; color: #fff; }
+.dashboard { flex: 1; min-width: 0; max-width: 1200px; margin: 0 auto; padding: 24px; }
 header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 h1 { font-size: 1.5rem; margin: 0; }
 h2 { font-size: 1rem; margin: 0 0 8px; }

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DashboardView } from "./DashboardView";
 
@@ -42,6 +42,14 @@ async function loaded() {
   render(<DashboardView />);
   await screen.findByText("Page 1 of 3");
 }
+
+describe("DashboardView left pane", () => {
+  it("lists Events first and selects it on load", async () => {
+    await loaded();
+    const events = within(screen.getByRole("navigation")).getByRole("button", { name: "Events" });
+    expect(events).toHaveAttribute("aria-current", "page");
+  });
+});
 
 describe("DashboardView fetching", () => {
   it("fetches exactly once on mount", async () => {
