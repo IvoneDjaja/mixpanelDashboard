@@ -2,32 +2,31 @@
 
 import { useEffect, useState } from "react";
 import type { DashboardData } from "@/lib/analytics/dashboard";
-import {
-  DEFAULT_ENVIRONMENT,
-  DEFAULT_LBU,
-  ENVIRONMENTS,
-  LBUS,
-  type Environment,
-  type Lbu,
-  type WindowKey,
-} from "@/lib/validation";
+import type { UsersData } from "@/lib/analytics/users";
+import { DEFAULT_ENVIRONMENT, DEFAULT_LBU, type Environment, type Lbu, type WindowKey } from "@/lib/validation";
 import { DEFAULT_PAGE_SIZE, type PageSize } from "@/lib/pagination";
-import { PaginatedTable } from "./PaginatedTable";
+import { FilterBar, type FilterValues } from "./FilterBar";
 import { LeftPane } from "./LeftPane";
+import { PaginatedTable } from "./PaginatedTable";
 import { Pagination } from "./Pagination";
 import { StateMessage } from "./StateMessage";
-
-/** Button labels for each supported time window, in display order. */
-const WINDOW_LABELS: Record<WindowKey, string> = {
-  "1h": "Last hour",
-  "24h": "Last 24 hours",
-  "30d": "Last 30 days",
-};
+import { UsersTable } from "./UsersTable";
 
 /** Items listed in the left pane; the first is shown by default. */
-const NAV_ITEMS = [{ id: "events", label: "Events" }];
+const NAV_ITEMS = [
+  { id: "events", label: "Events" },
+  { id: "users", label: "User" },
+] as const;
+type NavId = (typeof NAV_ITEMS)[number]["id"];
 
-type Status = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ok"; data: DashboardData };
+/** API route backing each left pane item. */
+const ENDPOINTS: Record<NavId, string> = { events: "/api/dashboard", users: "/api/users" };
+
+type Status =
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "ok"; item: "events"; data: DashboardData }
+  | { kind: "ok"; item: "users"; data: UsersData };
 
 /** Formats seconds as a compact duration such as "1m 05s". */
 function fmtSeconds(s: number): string {
@@ -42,22 +41,19 @@ function fmtSeconds(s: number): string {
  */
 export function DashboardView() {
   // Filter edits are held here and never fetch on their own; Apply promotes them.
-  const [pending, setPending] = useState({
+  const [pending, setPending] = useState<FilterValues>({
     window: "24h" as WindowKey,
     capability: "",
     environment: DEFAULT_ENVIRONMENT as Environment,
     lbu: DEFAULT_LBU as Lbu,
   });
-  // The only state that drives requests: initial load, Apply, and paging changes.
+  // The only state that drives requests: initial load, Apply, item and paging changes.
   const [applied, setApplied] = useState({
-    window: "24h" as WindowKey,
-    capability: "",
-    environment: DEFAULT_ENVIRONMENT as Environment,
-    lbu: DEFAULT_LBU as Lbu,
+    ...pending,
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE as PageSize,
   });
-  const [activeItem, setActiveItem] = useState(NAV_ITEMS[0].id);
+  const [activeItem, setActiveItem] = useState<NavId>(NAV_ITEMS[0].id);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const filtersDirty =
     pending.window !== applied.window ||
@@ -70,74 +66,57 @@ export function DashboardView() {
     const { window, capability, environment, lbu, page, pageSize } = applied;
     const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
     if (capability) params.set("capability", capability);
-    // Keep the previous data on screen while another page loads (no flicker).
+    // Keep the previous data on screen while another page of the same item loads (no flicker).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStatus((prev) => (prev.kind === "ok" ? prev : { kind: "loading" }));
+    setStatus((prev) => (prev.kind === "ok" && prev.item === activeItem ? prev : { kind: "loading" }));
     // Environment and LBU travel as headers so the URL carries only window/paging params.
-    fetch(`/api/dashboard?${params}`, {
+    fetch(`${ENDPOINTS[activeItem]}?${params}`, {
       signal: controller.signal,
       headers: { "x-environment": environment, "x-lbu": lbu },
     })
       .then(async (res) => {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "Request failed");
-        setStatus({ kind: "ok", data: body as DashboardData });
+        setStatus(
+          activeItem === "events"
+            ? { kind: "ok", item: "events", data: body as DashboardData }
+            : { kind: "ok", item: "users", data: body as UsersData },
+        );
       })
       .catch((e: Error) => {
         if (e.name !== "AbortError") setStatus({ kind: "error", message: e.message });
       });
     return () => controller.abort();
-  }, [applied]);
+  }, [applied, activeItem]);
 
-  const data = status.kind === "ok" ? status.data : null;
+  /** Switches the left pane item, starting from page 1 with the applied filters. */
+  const selectItem = (id: string) => {
+    if (id === activeItem) return;
+    setActiveItem(id as NavId);
+    setApplied((a) => ({ ...a, page: 1 }));
+  };
+
+  const data = status.kind === "ok" && status.item === "events" ? status.data : null;
+  const usersData = status.kind === "ok" && status.item === "users" ? status.data : null;
+  const capabilities = (data ?? usersData)?.capabilities ?? [];
+  const filterBar = (
+    <FilterBar
+      values={pending}
+      capabilities={capabilities}
+      dirty={filtersDirty}
+      onChange={(update) => setPending((p) => ({ ...p, ...update }))}
+      onApply={() => setApplied((a) => ({ ...a, ...pending, page: 1 }))}
+    />
+  );
 
   return (
     <div className="shell">
-      <LeftPane items={NAV_ITEMS} activeId={activeItem} onSelect={setActiveItem} />
+      <LeftPane items={[...NAV_ITEMS]} activeId={activeItem} onSelect={selectItem} />
       {activeItem === "events" && (
     <main className="dashboard">
       <header>
         <h1>Pruservices Customer Journey</h1>
-        <div className="controls">
-          <div role="group" aria-label="Time window">
-            {(Object.keys(WINDOW_LABELS) as WindowKey[]).map((w) => (
-              <button key={w} aria-pressed={pending.window === w} onClick={() => setPending((p) => ({ ...p, window: w }))}>
-                {WINDOW_LABELS[w]}
-              </button>
-            ))}
-          </div>
-          <label>
-            Function{" "}
-            <select value={pending.capability} onChange={(e) => setPending((p) => ({ ...p, capability: e.target.value }))}>
-              <option value="">All</option>
-              {(data?.capabilities ?? []).map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Environment{" "}
-            <select value={pending.environment} onChange={(e) => setPending((p) => ({ ...p, environment: e.target.value as Environment }))}>
-              {ENVIRONMENTS.map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            LBU{" "}
-            <select value={pending.lbu} onChange={(e) => setPending((p) => ({ ...p, lbu: e.target.value as Lbu }))}>
-              {LBUS.map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </select>
-          </label>
-          <button
-            disabled={!filtersDirty}
-            onClick={() => setApplied((a) => ({ ...a, ...pending, page: 1 }))}
-          >
-            Apply
-          </button>
-        </div>
+        {filterBar}
       </header>
 
       {status.kind === "loading" && <StateMessage kind="loading" />}
@@ -208,6 +187,27 @@ export function DashboardView() {
         </>
       )}
     </main>
+      )}
+      {activeItem === "users" && (
+        <main className="dashboard">
+          <header>
+            <h1>Users</h1>
+            {filterBar}
+          </header>
+          {status.kind === "loading" && <StateMessage kind="loading" />}
+          {status.kind === "error" && <StateMessage kind="error" message={status.message} />}
+          {usersData && (
+            <section className="panel">
+              <h2>Most recent users</h2>
+              <UsersTable
+                users={usersData.users}
+                pageSize={applied.pageSize}
+                onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
+                onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))}
+              />
+            </section>
+          )}
+        </main>
       )}
     </div>
   );

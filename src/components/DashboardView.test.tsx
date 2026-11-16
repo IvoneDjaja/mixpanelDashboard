@@ -51,6 +51,73 @@ describe("DashboardView left pane", () => {
   });
 });
 
+const usersPayload = {
+  window: "24h",
+  capabilities: ["Onboarding"],
+  users: {
+    rows: [{ userId: "user-1", lastSeen: 100, events: 3, lastPage: "Home", capability: "Onboarding", signInType: "Singpass" }],
+    page: 1,
+    pageSize: 10,
+    total: 25,
+    totalPages: 3,
+  },
+};
+
+/** Responds to /api/users with the users payload and everything else with the dashboard payload. */
+function routeFetch() {
+  fetchMock.mockImplementation(async (url: string) => ({
+    ok: true,
+    json: async () => (String(url).startsWith("/api/users") ? usersPayload : payload),
+  }));
+}
+
+describe("DashboardView user item", () => {
+  it("lists User second in the left pane", async () => {
+    await loaded();
+    const names = within(screen.getByRole("navigation")).getAllByRole("button").map((b) => b.textContent);
+    expect(names).toEqual(["Events", "User"]);
+  });
+
+  it("fetches /api/users with the applied filters and headers, and shows the users", async () => {
+    routeFetch();
+    await loaded();
+    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "User" }));
+    expect(await screen.findByText("user-1")).toBeInTheDocument();
+    const last = fetchMock.mock.calls.at(-1)!;
+    expect(String(last[0])).toMatch(/^\/api\/users\?/);
+    expect(urls().at(-1)!.get("page")).toBe("1");
+    expect(urls().at(-1)!.get("window")).toBe("24h");
+    expect(headers().at(-1)).toEqual({ "x-environment": "UAT", "x-lbu": "PACS" });
+    expect(within(screen.getByRole("navigation")).getByRole("button", { name: "User" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("keeps the same filter controls and applies them to the users list", async () => {
+    routeFetch();
+    await loaded();
+    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "User" }));
+    await screen.findByText("user-1");
+    await userEvent.selectOptions(screen.getByLabelText("Environment"), "SIT");
+    await userEvent.selectOptions(screen.getByLabelText("LBU"), "PBTB");
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(headers().at(-1)).toEqual({ "x-environment": "SIT", "x-lbu": "PBTB" }));
+    expect(String(fetchMock.mock.calls.at(-1)![0])).toMatch(/^\/api\/users/);
+  });
+
+  it("pages the users list and returns to page 1 after switching back to Events", async () => {
+    routeFetch();
+    await loaded();
+    const nav = within(screen.getByRole("navigation"));
+    await userEvent.click(nav.getByRole("button", { name: "User" }));
+    await screen.findByText("user-1");
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(urls().at(-1)!.get("page")).toBe("2"));
+    await userEvent.click(nav.getByRole("button", { name: "Events" }));
+    await screen.findByText("Page 1 of 3");
+    expect(String(fetchMock.mock.calls.at(-1)![0])).toMatch(/^\/api\/dashboard\?/);
+    expect(urls().at(-1)!.get("page")).toBe("1");
+  });
+});
+
 describe("DashboardView fetching", () => {
   it("fetches exactly once on mount", async () => {
     await loaded();
