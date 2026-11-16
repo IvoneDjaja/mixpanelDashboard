@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import type { DashboardData } from "@/lib/analytics/dashboard";
+import type { WindowKey } from "@/lib/validation";
 import { StateMessage } from "./StateMessage";
+
+/** Button labels for each supported time window, in display order. */
+const WINDOW_LABELS: Record<WindowKey, string> = {
+  "1h": "Last hour",
+  "24h": "Last 24 hours",
+  "30d": "Last 30 days",
+};
 
 type Status = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ok"; data: DashboardData };
 
@@ -18,7 +26,7 @@ function fmtSeconds(s: number): string {
  * @returns The dashboard UI.
  */
 export function DashboardView() {
-  const [window, setWindow] = useState<"24h" | "30d">("24h");
+  const [window, setWindow] = useState<WindowKey>("24h");
   const [capability, setCapability] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "loading" });
 
@@ -48,9 +56,9 @@ export function DashboardView() {
         <h1>Pruservices Customer Journey</h1>
         <div className="controls">
           <div role="group" aria-label="Time window">
-            {(["24h", "30d"] as const).map((w) => (
+            {(Object.keys(WINDOW_LABELS) as WindowKey[]).map((w) => (
               <button key={w} aria-pressed={window === w} onClick={() => setWindow(w)}>
-                {w === "24h" ? "Last 24 hours" : "Last 30 days"}
+                {WINDOW_LABELS[w]}
               </button>
             ))}
           </div>

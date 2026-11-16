@@ -1,5 +1,5 @@
 /** Time windows the dashboard supports. */
-export const WINDOWS = { "24h": 24 * 3600, "30d": 30 * 24 * 3600 } as const;
+export const WINDOWS = { "1h": 3600, "24h": 24 * 3600, "30d": 30 * 24 * 3600 } as const;
 export type WindowKey = keyof typeof WINDOWS;
 
 /** Validated dashboard query. */
@@ -21,7 +21,7 @@ export type ValidationResult =
 export function validateDashboardQuery(params: URLSearchParams): ValidationResult {
   const window = params.get("window") ?? "24h";
   if (!(window in WINDOWS)) {
-    return { ok: false, error: "window must be 24h or 30d" };
+    return { ok: false, error: "window must be 1h, 24h or 30d" };
   }
   const capability = params.get("capability")?.trim();
   if (capability && (capability.length > 100 || /[\u0000-\u001f]/.test(capability))) {

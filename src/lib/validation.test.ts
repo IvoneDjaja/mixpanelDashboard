@@ -9,8 +9,11 @@ describe("validateDashboardQuery", () => {
   it("accepts 30d and a capability", () => {
     expect(q("window=30d&capability=Onboarding")).toEqual({ ok: true, value: { window: "30d", capability: "Onboarding" } });
   });
+  it("accepts 1h", () => {
+    expect(q("window=1h")).toEqual({ ok: true, value: { window: "1h", capability: undefined } });
+  });
   it("rejects an invalid window", () => {
-    expect(q("window=7d")).toEqual({ ok: false, error: "window must be 24h or 30d" });
+    expect(q("window=7d")).toEqual({ ok: false, error: "window must be 1h, 24h or 30d" });
   });
   it("rejects overlong or control-character capabilities", () => {
     expect(q(`capability=${"a".repeat(101)}`).ok).toBe(false);

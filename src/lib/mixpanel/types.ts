@@ -27,4 +27,10 @@ export interface MixpanelConfig {
   /** Required for service accounts; optional with the project API Secret. */
   projectId?: string;
   region: MixpanelRegion;
+  /**
+   * Event property values the export is restricted to, keyed by property name
+   * (for example `{ Environment: "UAT", Lbu: "SG" }`). All must match. Empty or
+   * absent means no filtering. See PRD section 4.
+   */
+  filters?: Record<string, string>;
 }
