@@ -36,7 +36,7 @@ const PUBLIC_MESSAGE: Record<MixpanelError["kind"], string> = {
 export const maxDuration = 300;
 
 /**
- * GET /api/dashboard?window=1h|24h|30d&capability=...
+ * GET /api/dashboard?window=1h|24h|30d&capability=...&page=1&pageSize=10|25|50
  * @param request - Incoming request.
  * @returns Dashboard JSON, or a JSON error with an appropriate status.
  */
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-  const { window, capability } = parsed.value;
+  const { window, capability, page, pageSize } = parsed.value;
   const now = Math.floor(Date.now() / 1000);
   const since = now - WINDOWS[window];
 
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     // The API path is already filtered server-side; this covers the file path and
     // keeps both sources scoped identically (PRD section 4).
     const events = filterByProperties(loaded, readPropertyFilters());
-    return NextResponse.json(buildDashboard(events, window, since, capability));
+    return NextResponse.json(buildDashboard(events, window, since, capability, page, pageSize));
   } catch (error) {
     if (error instanceof MixpanelError) {
       // Log the real cause server-side: the public body is deliberately generic,

@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import type { DashboardData } from "@/lib/analytics/dashboard";
 import type { WindowKey } from "@/lib/validation";
+import { DEFAULT_PAGE_SIZE, type PageSize } from "@/lib/pagination";
+import { PaginatedTable } from "./PaginatedTable";
+import { Pagination } from "./Pagination";
 import { StateMessage } from "./StateMessage";
 
 /** Button labels for each supported time window, in display order. */
@@ -28,14 +31,17 @@ function fmtSeconds(s: number): string {
 export function DashboardView() {
   const [window, setWindow] = useState<WindowKey>("24h");
   const [capability, setCapability] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
 
   useEffect(() => {
     const controller = new AbortController();
-    const params = new URLSearchParams({ window });
+    const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
     if (capability) params.set("capability", capability);
+    // Keep the previous data on screen while another page loads (no flicker).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStatus({ kind: "loading" });
+    setStatus((prev) => (prev.kind === "ok" ? prev : { kind: "loading" }));
     fetch(`/api/dashboard?${params}`, { signal: controller.signal })
       .then(async (res) => {
         const body = await res.json();
@@ -46,7 +52,7 @@ export function DashboardView() {
         if (e.name !== "AbortError") setStatus({ kind: "error", message: e.message });
       });
     return () => controller.abort();
-  }, [window, capability]);
+  }, [window, capability, page, pageSize]);
 
   const data = status.kind === "ok" ? status.data : null;
 
@@ -57,14 +63,14 @@ export function DashboardView() {
         <div className="controls">
           <div role="group" aria-label="Time window">
             {(Object.keys(WINDOW_LABELS) as WindowKey[]).map((w) => (
-              <button key={w} aria-pressed={window === w} onClick={() => setWindow(w)}>
+              <button key={w} aria-pressed={window === w} onClick={() => { setWindow(w); setPage(1); }}>
                 {WINDOW_LABELS[w]}
               </button>
             ))}
           </div>
           <label>
             Function{" "}
-            <select value={capability} onChange={(e) => setCapability(e.target.value)}>
+            <select value={capability} onChange={(e) => { setCapability(e.target.value); setPage(1); }}>
               <option value="">All</option>
               {(data?.capabilities ?? []).map((c) => (
                 <option key={c}>{c}</option>
@@ -86,32 +92,52 @@ export function DashboardView() {
           <div className="grid">
             <section>
               <h2>Most visited pages</h2>
-              <table><thead><tr><th>Page</th><th>Views</th><th>Visitors</th></tr></thead>
-                <tbody>{data.mostVisited.map((p) => <tr key={p.page}><td>{p.page}</td><td>{p.views}</td><td>{p.uniqueVisitors}</td></tr>)}</tbody></table>
+              <PaginatedTable headers={["Page", "Views", "Visitors"]} rows={data.mostVisited} rowKey={(p) => p.page}
+                renderRow={(p) => <><td>{p.page}</td><td>{p.views}</td><td>{p.uniqueVisitors}</td></>} />
             </section>
             <section>
               <h2>Least visited pages</h2>
-              <table><thead><tr><th>Page</th><th>Views</th><th>Visitors</th></tr></thead>
-                <tbody>{data.leastVisited.map((p) => <tr key={p.page}><td>{p.page}</td><td>{p.views}</td><td>{p.uniqueVisitors}</td></tr>)}</tbody></table>
+              <PaginatedTable headers={["Page", "Views", "Visitors"]} rows={data.leastVisited} rowKey={(p) => p.page}
+                renderRow={(p) => <><td>{p.page}</td><td>{p.views}</td><td>{p.uniqueVisitors}</td></>} />
             </section>
             <section>
               <h2>Time on page</h2>
               {data.timeOnPage.length === 0 ? <StateMessage kind="empty" message="n/a (needs sessions with 2+ page views)" /> : (
-                <table><thead><tr><th>Page</th><th>Average</th><th>Median</th><th>Samples</th></tr></thead>
-                  <tbody>{data.timeOnPage.map((p) => <tr key={p.page}><td>{p.page}</td><td>{fmtSeconds(p.averageSeconds)}</td><td>{fmtSeconds(p.medianSeconds)}</td><td>{p.samples}</td></tr>)}</tbody></table>
+                <PaginatedTable headers={["Page", "Average", "Median", "Samples"]} rows={data.timeOnPage} rowKey={(p) => p.page}
+                  renderRow={(p) => <><td>{p.page}</td><td>{fmtSeconds(p.averageSeconds)}</td><td>{fmtSeconds(p.medianSeconds)}</td><td>{p.samples}</td></>} />
               )}
             </section>
             <section>
               <h2>Login mode</h2>
               {data.loginModes.length === 0 ? <StateMessage kind="empty" message="No login mode recorded." /> : (
-                <table><thead><tr><th>Mode</th><th>Sessions</th><th>Share</th></tr></thead>
-                  <tbody>{data.loginModes.map((m) => <tr key={m.mode}><td>{m.mode}</td><td>{m.sessions}</td><td>{m.percent.toFixed(0)}%</td></tr>)}</tbody></table>
+                <PaginatedTable headers={["Mode", "Sessions", "Share"]} rows={data.loginModes} rowKey={(m) => m.mode}
+                  renderRow={(m) => <><td>{m.mode}</td><td>{m.sessions}</td><td>{m.percent.toFixed(0)}%</td></>} />
               )}
             </section>
             <section className="wide">
               <h2>Top journey paths</h2>
-              <table><thead><tr><th>Path</th><th>Sessions</th><th>Share</th></tr></thead>
-                <tbody>{data.paths.map((p) => <tr key={p.path.join(">")}><td>{p.path.join(" → ")}</td><td>{p.sessions}</td><td>{p.percent.toFixed(0)}%</td></tr>)}</tbody></table>
+              <PaginatedTable headers={["Path", "Sessions", "Share"]} rows={data.paths} rowKey={(p) => p.path.join(">")}
+                renderRow={(p) => <><td>{p.path.join(" → ")}</td><td>{p.sessions}</td><td>{p.percent.toFixed(0)}%</td></>} />
+            </section>
+            <section className="wide">
+              <h2>Events</h2>
+              {data.events.total === 0 ? <StateMessage kind="empty" message="No events in this window." /> : (
+                <>
+                  <table>
+                    <thead><tr><th>Time</th><th>Event</th><th>Page</th><th>Function</th><th>Login mode</th><th>User</th></tr></thead>
+                    <tbody>
+                      {data.events.rows.map((e, i) => (
+                        <tr key={`${e.time}-${e.userId ?? ""}-${i}`}>
+                          <td>{new Date(e.time * 1000).toLocaleString()}</td><td>{e.event}</td><td>{e.page ?? "—"}</td>
+                          <td>{e.capability ?? "—"}</td><td>{e.signInType ?? "—"}</td><td>{e.userId ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination page={data.events.page} totalPages={data.events.totalPages} pageSize={pageSize}
+                    onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }} />
+                </>
+              )}
             </section>
             <section className="wide">
               <h2>Page performance and latency</h2>

@@ -3,6 +3,7 @@ import { buildSessions, toPageViews } from "./sessions";
 import { pageVisitStats } from "./pageVisits";
 import { timeOnPageStats } from "./timeOnPage";
 import { loginModeStats, topJourneyPaths } from "./journeys";
+import { buildEventsPage } from "./dashboard";
 
 /** Creates a synthetic page_viewed event. */
 const ev = (user: string, time: number, page: string, capability = "Dashboard", signIn?: string): MixpanelEvent => ({
@@ -71,5 +72,24 @@ describe("journeys", () => {
     const modes = loginModeStats(sessions);
     expect(modes.map((m) => m.mode).sort()).toEqual(["PRUServices", "Singpass"]);
     expect(modes[0].percent).toBe(50);
+  });
+});
+
+describe("buildEventsPage", () => {
+  it("sorts newest first and applies the window", () => {
+    const page = buildEventsPage(events, 150, undefined, 1, 10);
+    expect(page.rows.map((r) => r.time)).toEqual([3700, 230, 200, 160]);
+    expect(page.total).toBe(4);
+  });
+  it("filters by capability", () => {
+    const page = buildEventsPage(events, 0, "Policy Viewing", 1, 10);
+    expect(page.rows).toHaveLength(1);
+    expect(page.rows[0]).toMatchObject({ page: "Policy", userId: "a" });
+  });
+  it("pages and clamps", () => {
+    const first = buildEventsPage(events, 0, undefined, 1, 10);
+    expect(first.totalPages).toBe(1);
+    const clamped = buildEventsPage(events, 0, undefined, 9, 10);
+    expect(clamped.page).toBe(1);
   });
 });

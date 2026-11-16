@@ -25,7 +25,7 @@ export interface LoginModeStat {
 export function topJourneyPaths(
   sessions: PageView[][],
   capability?: string,
-  limit = 10,
+  limit = Infinity,
 ): JourneyPath[] {
   const relevant = capability
     ? sessions.filter((s) => s.some((v) => v.capability === capability))

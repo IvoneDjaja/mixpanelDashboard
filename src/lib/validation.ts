@@ -1,3 +1,5 @@
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES, isPageSize, type PageSize } from "./pagination";
+
 /** Time windows the dashboard supports. */
 export const WINDOWS = { "1h": 3600, "24h": 24 * 3600, "30d": 30 * 24 * 3600 } as const;
 export type WindowKey = keyof typeof WINDOWS;
@@ -6,6 +8,10 @@ export type WindowKey = keyof typeof WINDOWS;
 export interface DashboardQuery {
   window: WindowKey;
   capability?: string;
+  /** 1-based page of the events table. */
+  page: number;
+  /** Rows per page of the events table. */
+  pageSize: PageSize;
 }
 
 /** Result of validating query parameters. */
@@ -27,7 +33,20 @@ export function validateDashboardQuery(params: URLSearchParams): ValidationResul
   if (capability && (capability.length > 100 || /[\u0000-\u001f]/.test(capability))) {
     return { ok: false, error: "capability is invalid" };
   }
-  return { ok: true, value: { window: window as WindowKey, capability: capability || undefined } };
+  const pageParam = params.get("page");
+  const page = pageParam === null ? 1 : Number(pageParam);
+  if (!Number.isInteger(page) || page < 1) {
+    return { ok: false, error: "page must be a positive integer" };
+  }
+  const sizeParam = params.get("pageSize");
+  const pageSize = sizeParam === null ? DEFAULT_PAGE_SIZE : Number(sizeParam);
+  if (!isPageSize(pageSize)) {
+    return { ok: false, error: `pageSize must be one of ${PAGE_SIZES.join(", ")}` };
+  }
+  return {
+    ok: true,
+    value: { window: window as WindowKey, capability: capability || undefined, page, pageSize },
+  };
 }
 
 /**

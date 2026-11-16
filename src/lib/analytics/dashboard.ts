@@ -2,7 +2,49 @@ import type { MixpanelEvent } from "@/lib/mixpanel/types";
 import { buildSessions, toPageViews } from "./sessions";
 import { pageVisitStats, type PageVisitStat } from "./pageVisits";
 import { timeOnPageStats, type TimeOnPageStat } from "./timeOnPage";
+import { DEFAULT_PAGE_SIZE, paginate, type Page } from "@/lib/pagination";
 import { loginModeStats, topJourneyPaths, type JourneyPath, type LoginModeStat } from "./journeys";
+
+/** One raw event, reduced to the fields the events table shows. */
+export interface EventRow {
+  time: number;
+  event: string;
+  page?: string;
+  capability?: string;
+  signInType?: string;
+  userId?: string;
+}
+
+/**
+ * Builds one page of raw events in the window, newest first.
+ * @param events - Raw Mixpanel events.
+ * @param sinceEpochSeconds - Start of the window.
+ * @param capability - Optional capability filter.
+ * @param page - Requested 1-based page.
+ * @param pageSize - Rows per page.
+ * @returns A page of reduced event rows plus paging metadata.
+ */
+export function buildEventsPage(
+  events: MixpanelEvent[],
+  sinceEpochSeconds: number,
+  capability: string | undefined,
+  page: number,
+  pageSize: number,
+): Page<EventRow> {
+  const rows = events
+    .filter((e) => typeof e.properties.time === "number" && e.properties.time >= sinceEpochSeconds)
+    .filter((e) => !capability || e.properties.capability === capability)
+    .sort((a, b) => b.properties.time - a.properties.time)
+    .map((e) => ({
+      time: e.properties.time,
+      event: e.event,
+      page: e.properties.page_name,
+      capability: e.properties.capability,
+      signInType: e.properties.sign_in_type || undefined,
+      userId: e.properties.distinct_id,
+    }));
+  return paginate(rows, page, pageSize);
+}
 
 /** Everything the dashboard page displays. */
 export interface DashboardData {
@@ -15,6 +57,8 @@ export interface DashboardData {
   timeOnPage: TimeOnPageStat[];
   paths: JourneyPath[];
   loginModes: LoginModeStat[];
+  /** Server-paginated raw events table. */
+  events: Page<EventRow>;
   /** Page latency is not captured by the current events. */
   latencyAvailable: false;
 }
@@ -25,6 +69,8 @@ export interface DashboardData {
  * @param windowKey - Label of the window (for display).
  * @param sinceEpochSeconds - Start of the window.
  * @param capability - Optional capability filter for journey paths.
+ * @param page - 1-based page of the events table.
+ * @param pageSize - Rows per page of the events table.
  * @returns Dashboard data.
  */
 export function buildDashboard(
@@ -32,6 +78,8 @@ export function buildDashboard(
   windowKey: string,
   sinceEpochSeconds: number,
   capability?: string,
+  page = 1,
+  pageSize: number = DEFAULT_PAGE_SIZE,
 ): DashboardData {
   const views = toPageViews(events).filter((v) => v.time >= sinceEpochSeconds);
   const sessions = buildSessions(views);
@@ -41,11 +89,12 @@ export function buildDashboard(
     totalViews: views.length,
     totalSessions: sessions.length,
     capabilities: [...new Set(views.map((v) => v.capability))].sort(),
-    mostVisited: visits.slice(0, 10),
-    leastVisited: [...visits].reverse().slice(0, 10),
+    mostVisited: visits,
+    leastVisited: [...visits].reverse(),
     timeOnPage: timeOnPageStats(sessions),
     paths: topJourneyPaths(sessions, capability),
     loginModes: loginModeStats(sessions),
+    events: buildEventsPage(events, sinceEpochSeconds, capability, page, pageSize),
     latencyAvailable: false,
   };
 }
