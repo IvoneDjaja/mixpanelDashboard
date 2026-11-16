@@ -29,14 +29,21 @@ function fmtSeconds(s: number): string {
  * @returns The dashboard UI.
  */
 export function DashboardView() {
-  const [window, setWindow] = useState<WindowKey>("24h");
-  const [capability, setCapability] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+  // Filter edits are held here and never fetch on their own; Apply promotes them.
+  const [pending, setPending] = useState({ window: "24h" as WindowKey, capability: "" });
+  // The only state that drives requests: initial load, Apply, and paging changes.
+  const [applied, setApplied] = useState({
+    window: "24h" as WindowKey,
+    capability: "",
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE as PageSize,
+  });
   const [status, setStatus] = useState<Status>({ kind: "loading" });
+  const filtersDirty = pending.window !== applied.window || pending.capability !== applied.capability;
 
   useEffect(() => {
     const controller = new AbortController();
+    const { window, capability, page, pageSize } = applied;
     const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
     if (capability) params.set("capability", capability);
     // Keep the previous data on screen while another page loads (no flicker).
@@ -52,7 +59,7 @@ export function DashboardView() {
         if (e.name !== "AbortError") setStatus({ kind: "error", message: e.message });
       });
     return () => controller.abort();
-  }, [window, capability, page, pageSize]);
+  }, [applied]);
 
   const data = status.kind === "ok" ? status.data : null;
 
@@ -63,20 +70,26 @@ export function DashboardView() {
         <div className="controls">
           <div role="group" aria-label="Time window">
             {(Object.keys(WINDOW_LABELS) as WindowKey[]).map((w) => (
-              <button key={w} aria-pressed={window === w} onClick={() => { setWindow(w); setPage(1); }}>
+              <button key={w} aria-pressed={pending.window === w} onClick={() => setPending((p) => ({ ...p, window: w }))}>
                 {WINDOW_LABELS[w]}
               </button>
             ))}
           </div>
           <label>
             Function{" "}
-            <select value={capability} onChange={(e) => { setCapability(e.target.value); setPage(1); }}>
+            <select value={pending.capability} onChange={(e) => setPending((p) => ({ ...p, capability: e.target.value }))}>
               <option value="">All</option>
               {(data?.capabilities ?? []).map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
           </label>
+          <button
+            disabled={!filtersDirty}
+            onClick={() => setApplied((a) => ({ ...a, window: pending.window, capability: pending.capability, page: 1 }))}
+          >
+            Apply
+          </button>
         </div>
       </header>
 
@@ -134,8 +147,9 @@ export function DashboardView() {
                       ))}
                     </tbody>
                   </table>
-                  <Pagination page={data.events.page} totalPages={data.events.totalPages} pageSize={pageSize}
-                    onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }} />
+                  <Pagination page={data.events.page} totalPages={data.events.totalPages} pageSize={applied.pageSize}
+                    onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
+                    onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))} />
                 </>
               )}
             </section>
