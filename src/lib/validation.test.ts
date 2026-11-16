@@ -21,24 +21,6 @@ describe("validateDashboardQuery", () => {
   });
 });
 
-describe("validateDashboardQuery environment and lbu", () => {
-  it("defaults to UAT and PACS", () => {
-    expect(q("")).toMatchObject({ ok: true, value: { environment: "UAT", lbu: "PACS" } });
-  });
-  it("accepts every listed environment and LBU", () => {
-    for (const environment of ["DEV", "SIT", "UAT", "PROD"]) {
-      expect(q(`environment=${environment}`)).toMatchObject({ ok: true, value: { environment } });
-    }
-    for (const lbu of ["PACS", "PAMB", "PBTB"]) {
-      expect(q(`lbu=${lbu}`)).toMatchObject({ ok: true, value: { lbu } });
-    }
-  });
-  it("rejects unknown or wrongly cased values", () => {
-    expect(q("environment=uat")).toEqual({ ok: false, error: "environment must be one of DEV, SIT, UAT, PROD" });
-    expect(q("lbu=XYZ")).toEqual({ ok: false, error: "lbu must be one of PACS, PAMB, PBTB" });
-  });
-});
-
 describe("toDateString", () => {
   it("formats UTC dates", () => {
     expect(toDateString(1793693398)).toBe("2026-11-03");

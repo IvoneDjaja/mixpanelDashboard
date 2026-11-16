@@ -2,15 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { DashboardData } from "@/lib/analytics/dashboard";
-import {
-  DEFAULT_ENVIRONMENT,
-  DEFAULT_LBU,
-  ENVIRONMENTS,
-  LBUS,
-  type Environment,
-  type Lbu,
-  type WindowKey,
-} from "@/lib/validation";
+import type { WindowKey } from "@/lib/validation";
 import { DEFAULT_PAGE_SIZE, type PageSize } from "@/lib/pagination";
 import { PaginatedTable } from "./PaginatedTable";
 import { Pagination } from "./Pagination";
@@ -32,38 +24,27 @@ function fmtSeconds(s: number): string {
 }
 
 /**
- * Dashboard page body: window, capability, environment and LBU controls plus all report tables.
+ * Dashboard page body: window and capability controls plus all report tables.
  * Fetches data from /api/dashboard.
  * @returns The dashboard UI.
  */
 export function DashboardView() {
   // Filter edits are held here and never fetch on their own; Apply promotes them.
-  const [pending, setPending] = useState({
-    window: "24h" as WindowKey,
-    capability: "",
-    environment: DEFAULT_ENVIRONMENT as Environment,
-    lbu: DEFAULT_LBU as Lbu,
-  });
+  const [pending, setPending] = useState({ window: "24h" as WindowKey, capability: "" });
   // The only state that drives requests: initial load, Apply, and paging changes.
   const [applied, setApplied] = useState({
     window: "24h" as WindowKey,
     capability: "",
-    environment: DEFAULT_ENVIRONMENT as Environment,
-    lbu: DEFAULT_LBU as Lbu,
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE as PageSize,
   });
   const [status, setStatus] = useState<Status>({ kind: "loading" });
-  const filtersDirty =
-    pending.window !== applied.window ||
-    pending.capability !== applied.capability ||
-    pending.environment !== applied.environment ||
-    pending.lbu !== applied.lbu;
+  const filtersDirty = pending.window !== applied.window || pending.capability !== applied.capability;
 
   useEffect(() => {
     const controller = new AbortController();
-    const { window, capability, environment, lbu, page, pageSize } = applied;
-    const params = new URLSearchParams({ window, environment, lbu, page: String(page), pageSize: String(pageSize) });
+    const { window, capability, page, pageSize } = applied;
+    const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
     if (capability) params.set("capability", capability);
     // Keep the previous data on screen while another page loads (no flicker).
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -103,25 +84,9 @@ export function DashboardView() {
               ))}
             </select>
           </label>
-          <label>
-            Environment{" "}
-            <select value={pending.environment} onChange={(e) => setPending((p) => ({ ...p, environment: e.target.value as Environment }))}>
-              {ENVIRONMENTS.map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            LBU{" "}
-            <select value={pending.lbu} onChange={(e) => setPending((p) => ({ ...p, lbu: e.target.value as Lbu }))}>
-              {LBUS.map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </select>
-          </label>
           <button
             disabled={!filtersDirty}
-            onClick={() => setApplied((a) => ({ ...a, ...pending, page: 1 }))}
+            onClick={() => setApplied((a) => ({ ...a, window: pending.window, capability: pending.capability, page: 1 }))}
           >
             Apply
           </button>
