@@ -4,10 +4,24 @@ import { DEFAULT_PAGE_SIZE, PAGE_SIZES, isPageSize, type PageSize } from "./pagi
 export const WINDOWS = { "1h": 3600, "24h": 24 * 3600, "30d": 30 * 24 * 3600 } as const;
 export type WindowKey = keyof typeof WINDOWS;
 
+/** Event `Environment` values the dashboard can be scoped to. */
+export const ENVIRONMENTS = ["DEV", "SIT", "UAT", "PROD"] as const;
+export type Environment = (typeof ENVIRONMENTS)[number];
+export const DEFAULT_ENVIRONMENT: Environment = "UAT";
+
+/** Event `LBU` values the dashboard can be scoped to. */
+export const LBUS = ["PACS", "PAMB", "PBTB"] as const;
+export type Lbu = (typeof LBUS)[number];
+export const DEFAULT_LBU: Lbu = "PACS";
+
 /** Validated dashboard query. */
 export interface DashboardQuery {
   window: WindowKey;
   capability?: string;
+  /** Environment the events are scoped to. */
+  environment: Environment;
+  /** Line of business the events are scoped to. */
+  lbu: Lbu;
   /** 1-based page of the events table. */
   page: number;
   /** Rows per page of the events table. */
@@ -33,6 +47,14 @@ export function validateDashboardQuery(params: URLSearchParams): ValidationResul
   if (capability && (capability.length > 100 || /[\u0000-\u001f]/.test(capability))) {
     return { ok: false, error: "capability is invalid" };
   }
+  const environment = params.get("environment") ?? DEFAULT_ENVIRONMENT;
+  if (!(ENVIRONMENTS as readonly string[]).includes(environment)) {
+    return { ok: false, error: `environment must be one of ${ENVIRONMENTS.join(", ")}` };
+  }
+  const lbu = params.get("lbu") ?? DEFAULT_LBU;
+  if (!(LBUS as readonly string[]).includes(lbu)) {
+    return { ok: false, error: `lbu must be one of ${LBUS.join(", ")}` };
+  }
   const pageParam = params.get("page");
   const page = pageParam === null ? 1 : Number(pageParam);
   if (!Number.isInteger(page) || page < 1) {
@@ -45,7 +67,14 @@ export function validateDashboardQuery(params: URLSearchParams): ValidationResul
   }
   return {
     ok: true,
-    value: { window: window as WindowKey, capability: capability || undefined, page, pageSize },
+    value: {
+      window: window as WindowKey,
+      capability: capability || undefined,
+      environment: environment as Environment,
+      lbu: lbu as Lbu,
+      page,
+      pageSize,
+    },
   };
 }
 

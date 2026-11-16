@@ -22,33 +22,6 @@ const MAX_CONCURRENT_DAY_QUERIES = 3;
 /** The only event the dashboard analyses (see toPageViews). */
 const PAGE_VIEW_EVENT = "page_viewed";
 
-/**
- * Environment variables that scope the export, mapped to the Mixpanel event
- * property each one filters on. Add an entry here to support another of the
- * context properties listed in PRD section 4 (Platform, Region, Product, ...);
- * nothing else needs to change.
- */
-export const PROPERTY_FILTER_ENV_VARS: Record<string, string> = {
-  MIXPANEL_ENVIRONMENT: "Environment",
-  MIXPANEL_LBU: "LBU",
-};
-
-/**
- * Collects the configured property filters from the environment.
- * @param env - Environment to read from (defaults to process.env).
- * @returns Property name to required value; empty when none are configured.
- */
-export function readPropertyFilters(
-  env: Record<string, string | undefined> = process.env,
-): Record<string, string> {
-  const filters: Record<string, string> = {};
-  for (const [variable, property] of Object.entries(PROPERTY_FILTER_ENV_VARS)) {
-    const value = env[variable]?.trim();
-    if (value) filters[property] = value;
-  }
-  return filters;
-}
-
 /** Longest upstream snippet retained on an error for server-side logging. */
 const DETAIL_MAX_LENGTH = 200;
 
@@ -89,8 +62,8 @@ export class MixpanelError extends Error {
  * Reads Mixpanel settings from environment variables.
  * Uses a service account (MIXPANEL_SERVICE_ACCOUNT_USER/SECRET + MIXPANEL_PROJECT_ID)
  * when configured, otherwise falls back to the legacy project API Secret (MIXPANEL_API_SECRET).
- * MIXPANEL_ENVIRONMENT and MIXPANEL_LBU, when set, restrict the export to events
- * carrying those property values (see PROPERTY_FILTER_ENV_VARS).
+ * Property filters (Environment, LBU) are not read here; callers pass them via
+ * `config.filters` (see the dashboard route).
  * @param env - Environment to read from (defaults to process.env).
  * @returns Validated configuration.
  * @throws MixpanelError of kind "config" when a variable is missing or invalid.
@@ -103,14 +76,13 @@ export function getMixpanelConfig(
   const apiSecret = env.MIXPANEL_API_SECRET;
   const projectId = env.MIXPANEL_PROJECT_ID;
   const region = (env.MIXPANEL_REGION ?? "us") as MixpanelRegion;
-  const filters = readPropertyFilters(env);
 
   if (!(region in EXPORT_HOSTS)) {
     throw new MixpanelError("config", "MIXPANEL_REGION must be us, eu or in");
   }
 
   if (!user && !secret && apiSecret) {
-    return { secret: apiSecret, projectId: projectId || undefined, region, filters };
+    return { secret: apiSecret, projectId: projectId || undefined, region };
   }
 
   const missing = [
@@ -121,7 +93,7 @@ export function getMixpanelConfig(
   if (missing.length > 0) {
     throw new MixpanelError("config", `Missing env: ${missing.join(", ")} (or set MIXPANEL_API_SECRET)`);
   }
-  return { user: user!, secret: secret!, projectId: projectId!, region, filters };
+  return { user: user!, secret: secret!, projectId: projectId!, region };
 }
 
 /**

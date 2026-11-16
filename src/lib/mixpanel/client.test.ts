@@ -4,7 +4,6 @@ import {
   eachDay,
   filterByProperties,
   propertyWhereClause,
-  readPropertyFilters,
   fetchEvents,
   getMixpanelConfig,
   MixpanelError,
@@ -40,7 +39,6 @@ describe("getMixpanelConfig", () => {
       secret: "k",
       projectId: undefined,
       region: "eu",
-      filters: {},
     });
   });
   it("prefers the service account when both are configured", () => {
@@ -272,55 +270,30 @@ describe("transport error diagnostics", () => {
 });
 
 describe("property filters", () => {
-  const account = {
-    MIXPANEL_SERVICE_ACCOUNT_USER: "u",
-    MIXPANEL_SERVICE_ACCOUNT_SECRET: "s",
-    MIXPANEL_PROJECT_ID: "1",
-  };
-
-  it("reads Environment and Lbu from the environment, trimming values", () => {
-    expect(readPropertyFilters({ MIXPANEL_ENVIRONMENT: " UAT ", MIXPANEL_LBU: " SG " })).toEqual({
-      Environment: "UAT",
-      Lbu: "SG",
-    });
-  });
-  it("omits variables that are absent or blank", () => {
-    expect(readPropertyFilters({ MIXPANEL_ENVIRONMENT: "UAT", MIXPANEL_LBU: "   " })).toEqual({
-      Environment: "UAT",
-    });
-    expect(readPropertyFilters({})).toEqual({});
-  });
-  it("supports either filter on its own", () => {
-    expect(getMixpanelConfig({ ...account, MIXPANEL_LBU: "SG" }).filters).toEqual({ Lbu: "SG" });
-    expect(getMixpanelConfig({ ...account, MIXPANEL_ENVIRONMENT: "UAT" }).filters).toEqual({
-      Environment: "UAT",
-    });
-  });
-
   it("builds a single-property expression", () => {
     expect(propertyWhereClause({ Environment: "UAT" })).toBe(
       '(properties["Environment"] == "UAT")',
     );
   });
   it("joins multiple properties with and", () => {
-    expect(propertyWhereClause({ Environment: "UAT", Lbu: "SG" })).toBe(
-      '(properties["Environment"] == "UAT") and (properties["Lbu"] == "SG")',
+    expect(propertyWhereClause({ Environment: "UAT", LBU: "PACS" })).toBe(
+      '(properties["Environment"] == "UAT") and (properties["LBU"] == "PACS")',
     );
   });
   it("returns undefined when there is nothing to filter", () => {
     expect(propertyWhereClause({})).toBeUndefined();
   });
   it("escapes quotes and backslashes so the expression cannot be broken", () => {
-    expect(propertyWhereClause({ Lbu: 'S"G' })).toBe('(properties["Lbu"] == "S\\"G")');
-    expect(propertyWhereClause({ Lbu: "S\\G" })).toBe('(properties["Lbu"] == "S\\\\G")');
+    expect(propertyWhereClause({ LBU: 'P"A' })).toBe('(properties["LBU"] == "P\\"A")');
+    expect(propertyWhereClause({ LBU: "P\\A" })).toBe('(properties["LBU"] == "P\\\\A")');
   });
 
   it("sends the combined where clause to Mixpanel", async () => {
     const f = fakeFetch(200, "");
-    await fetchEvents(range, { ...config, filters: { Environment: "UAT", Lbu: "SG" } }, f);
+    await fetchEvents(range, { ...config, filters: { Environment: "UAT", LBU: "PACS" } }, f);
     const [url] = (f as jest.Mock).mock.calls[0];
     expect(new URL(String(url)).searchParams.get("where")).toBe(
-      '(properties["Environment"] == "UAT") and (properties["Lbu"] == "SG")',
+      '(properties["Environment"] == "UAT") and (properties["LBU"] == "PACS")',
     );
   });
   it("omits the where clause when no filters are configured", async () => {
@@ -333,21 +306,21 @@ describe("property filters", () => {
 
 describe("filterByProperties", () => {
   const events = [
-    { event: "page_viewed", properties: { time: 1, Environment: "UAT", Lbu: "SG" } },
-    { event: "page_viewed", properties: { time: 2, Environment: "UAT", Lbu: "MY" } },
-    { event: "page_viewed", properties: { time: 3, Environment: "PROD", Lbu: "SG" } },
+    { event: "page_viewed", properties: { time: 1, Environment: "UAT", LBU: "PACS" } },
+    { event: "page_viewed", properties: { time: 2, Environment: "UAT", LBU: "PAMB" } },
+    { event: "page_viewed", properties: { time: 3, Environment: "PROD", LBU: "PACS" } },
     { event: "page_viewed", properties: { time: 4 } },
   ];
   const times = (out: { properties: { time: number } }[]) => out.map((e) => e.properties.time);
 
   it("requires every filter to match", () => {
-    expect(times(filterByProperties(events, { Environment: "UAT", Lbu: "SG" }))).toEqual([1]);
+    expect(times(filterByProperties(events, { Environment: "UAT", LBU: "PACS" }))).toEqual([1]);
   });
   it("filters on one property alone", () => {
-    expect(times(filterByProperties(events, { Lbu: "SG" }))).toEqual([1, 3]);
+    expect(times(filterByProperties(events, { LBU: "PACS" }))).toEqual([1, 3]);
   });
   it("drops events missing a filtered property rather than guessing", () => {
-    expect(times(filterByProperties(events, { Lbu: "SG" }))).not.toContain(4);
+    expect(times(filterByProperties(events, { LBU: "PACS" }))).not.toContain(4);
   });
   it("returns everything when no filters are configured", () => {
     expect(filterByProperties(events, {})).toHaveLength(4);
@@ -367,8 +340,8 @@ describe("fetchEvents caching", () => {
 
   it("keeps different property filters on separate cache entries", async () => {
     const f = fakeFetch(200, "");
-    await fetchEvents(range, { ...config, filters: { Lbu: "SG" } }, f);
-    await fetchEvents(range, { ...config, filters: { Lbu: "MY" } }, f);
+    await fetchEvents(range, { ...config, filters: { LBU: "PACS" } }, f);
+    await fetchEvents(range, { ...config, filters: { LBU: "PAMB" } }, f);
     expect((f as jest.Mock).mock.calls).toHaveLength(2);
   });
 

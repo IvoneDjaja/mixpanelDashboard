@@ -50,6 +50,26 @@ describe("DashboardView fetching", () => {
     expect(urls()[0].get("pageSize")).toBe("10");
   });
 
+  it("sends the default environment and LBU on mount", async () => {
+    await loaded();
+    expect(urls()[0].get("environment")).toBe("UAT");
+    expect(urls()[0].get("lbu")).toBe("PACS");
+  });
+
+  it("fetches environment and LBU only after Apply, resetting to page 1", async () => {
+    await loaded();
+    await userEvent.click(eventsNext());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await userEvent.selectOptions(screen.getByLabelText("Environment"), "SIT");
+    await userEvent.selectOptions(screen.getByLabelText("LBU"), "PBTB");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(urls()[2].get("environment")).toBe("SIT");
+    expect(urls()[2].get("lbu")).toBe("PBTB");
+    expect(urls()[2].get("page")).toBe("1");
+  });
+
   it("does not fetch when window or function change, and enables Apply", async () => {
     await loaded();
     const apply = screen.getByRole("button", { name: "Apply" });

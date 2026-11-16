@@ -27,20 +27,20 @@ describe("dayCacheKey", () => {
     expect(dayCacheKey(PAST, config)).toBe(dayCacheKey(PAST, config));
   });
   it("ignores the order filters were declared in", () => {
-    const a = dayCacheKey(PAST, { ...config, filters: { Environment: "UAT", Lbu: "SG" } });
-    const b = dayCacheKey(PAST, { ...config, filters: { Lbu: "SG", Environment: "UAT" } });
+    const a = dayCacheKey(PAST, { ...config, filters: { Environment: "UAT", LBU: "PACS" } });
+    const b = dayCacheKey(PAST, { ...config, filters: { LBU: "PACS", Environment: "UAT" } });
     expect(a).toBe(b);
   });
   it("separates different days, filters, regions and projects", () => {
     const base = dayCacheKey(PAST, config);
     expect(dayCacheKey(TODAY, config)).not.toBe(base);
-    expect(dayCacheKey(PAST, { ...config, filters: { Lbu: "SG" } })).not.toBe(base);
+    expect(dayCacheKey(PAST, { ...config, filters: { LBU: "PACS" } })).not.toBe(base);
     expect(dayCacheKey(PAST, { ...config, region: "us" })).not.toBe(base);
     expect(dayCacheKey(PAST, { ...config, projectId: "2" })).not.toBe(base);
   });
   it("separates filters that differ only in value", () => {
-    expect(dayCacheKey(PAST, { ...config, filters: { Lbu: "SG" } })).not.toBe(
-      dayCacheKey(PAST, { ...config, filters: { Lbu: "MY" } }),
+    expect(dayCacheKey(PAST, { ...config, filters: { LBU: "PACS" } })).not.toBe(
+      dayCacheKey(PAST, { ...config, filters: { LBU: "PAMB" } }),
     );
   });
   it("never embeds the credentials", () => {
