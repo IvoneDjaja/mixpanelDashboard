@@ -20,12 +20,12 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange }
   return (
     <>
       <table>
-        <thead><tr><th>Time</th><th>Event</th><th>Page</th><th>Function</th><th>Login mode</th><th>User</th></tr></thead>
+        <thead><tr><th>Time</th><th>Event</th><th>Page</th><th>User</th></tr></thead>
         <tbody>
           {events.rows.map((e, i) => (
             <tr key={`${e.time}-${e.userId ?? ""}-${i}`}>
               <td>{new Date(e.time * 1000).toLocaleString()}</td><td>{e.event}</td><td>{e.page ?? "—"}</td>
-              <td>{e.capability ?? "—"}</td><td>{e.signInType ?? "—"}</td><td>{e.userId ?? "—"}</td>
+              <td>{e.userId ?? "—"}</td>
             </tr>
           ))}
         </tbody>

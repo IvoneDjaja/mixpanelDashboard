@@ -23,7 +23,7 @@ export function UsersTable({ users, pageSize, onPageChange, onPageSizeChange, on
     <>
       <table>
         <thead>
-          <tr><th>User</th><th>Last seen</th><th>Events</th><th>Last page</th><th>Function</th><th>Login mode</th></tr>
+          <tr><th>User</th><th>Last seen</th><th>Events</th><th>Last page</th><th>Login mode</th></tr>
         </thead>
         <tbody>
           {users.rows.map((u) => (
@@ -36,7 +36,6 @@ export function UsersTable({ users, pageSize, onPageChange, onPageSizeChange, on
               <td>{new Date(u.lastSeen * 1000).toLocaleString()}</td>
               <td>{u.events}</td>
               <td>{u.lastPage ?? "—"}</td>
-              <td>{u.capability ?? "—"}</td>
               <td>{u.signInType ?? "—"}</td>
             </tr>
           ))}

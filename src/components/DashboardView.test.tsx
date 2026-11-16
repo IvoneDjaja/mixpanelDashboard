@@ -196,12 +196,11 @@ describe("DashboardView fetching", () => {
     expect(urls()[2].get("page")).toBe("1");
   });
 
-  it("does not fetch when window or function change, and enables Apply", async () => {
+  it("does not fetch when window changes, and enables Apply", async () => {
     await loaded();
     const apply = screen.getByRole("button", { name: "Apply" });
     expect(apply).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Last 30 days" }));
-    await userEvent.selectOptions(screen.getByLabelText("Function"), "Onboarding");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(apply).toBeEnabled();
   });
@@ -209,11 +208,10 @@ describe("DashboardView fetching", () => {
   it("fetches once on Apply with the new filters and page 1", async () => {
     await loaded();
     await userEvent.click(screen.getByRole("button", { name: "Last 30 days" }));
-    await userEvent.selectOptions(screen.getByLabelText("Function"), "Onboarding");
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(urls()[1].get("window")).toBe("30d");
-    expect(urls()[1].get("capability")).toBe("Onboarding");
+    expect(urls()[1].has("capability")).toBe(false);
     expect(urls()[1].get("page")).toBe("1");
   });
 

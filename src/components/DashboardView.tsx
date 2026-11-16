@@ -39,7 +39,7 @@ function fmtSeconds(s: number): string {
 }
 
 /**
- * Dashboard page body: window, capability, environment and LBU controls plus all report tables.
+ * Dashboard page body: window, environment and LBU controls plus all report tables.
  * Fetches data from /api/dashboard.
  * @returns The dashboard UI.
  */
@@ -47,7 +47,6 @@ export function DashboardView() {
   // Filter edits are held here and never fetch on their own; Apply promotes them.
   const [pending, setPending] = useState<FilterValues>({
     window: "24h" as WindowKey,
-    capability: "",
     environment: DEFAULT_ENVIRONMENT as Environment,
     lbu: DEFAULT_LBU as Lbu,
   });
@@ -62,15 +61,13 @@ export function DashboardView() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const filtersDirty =
     pending.window !== applied.window ||
-    pending.capability !== applied.capability ||
     pending.environment !== applied.environment ||
     pending.lbu !== applied.lbu;
 
   useEffect(() => {
     const controller = new AbortController();
-    const { window, capability, environment, lbu, page, pageSize } = applied;
+    const { window, environment, lbu, page, pageSize } = applied;
     const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
-    if (capability) params.set("capability", capability);
     const item: NavId | "userEvents" = selectedUser ? "userEvents" : activeItem;
     if (selectedUser) params.set("userId", selectedUser);
     // Keep the previous data on screen while another page of the same item loads (no flicker).
@@ -121,11 +118,9 @@ export function DashboardView() {
   const data = status.kind === "ok" && status.item === "events" ? status.data : null;
   const usersData = status.kind === "ok" && status.item === "users" ? status.data : null;
   const userEventsData = status.kind === "ok" && status.item === "userEvents" ? status.data : null;
-  const capabilities = (data ?? usersData)?.capabilities ?? [];
   const filterBar = (
     <FilterBar
       values={pending}
-      capabilities={capabilities}
       dirty={filtersDirty}
       onChange={(update) => setPending((p) => ({ ...p, ...update }))}
       onApply={() => setApplied((a) => ({ ...a, ...pending, page: 1 }))}

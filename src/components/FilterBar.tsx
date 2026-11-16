@@ -10,15 +10,12 @@ const WINDOW_LABELS: Record<WindowKey, string> = {
 /** The filters a user edits before pressing Apply. */
 export interface FilterValues {
   window: WindowKey;
-  capability: string;
   environment: Environment;
   lbu: Lbu;
 }
 
 interface FilterBarProps {
   values: FilterValues;
-  /** Functions offered in the Function dropdown, besides "All". */
-  capabilities: string[];
   /** Whether the edited values differ from the applied ones. */
   dirty: boolean;
   onChange: (update: Partial<FilterValues>) => void;
@@ -26,12 +23,12 @@ interface FilterBarProps {
 }
 
 /**
- * Window, function, environment and LBU controls with an Apply button. Edits go
+ * Window, environment and LBU controls with an Apply button. Edits go
  * through `onChange` and never fetch on their own; `onApply` promotes them.
- * @param props - Current values, dropdown options and handlers.
+ * @param props - Current values and handlers.
  * @returns The filter controls.
  */
-export function FilterBar({ values, capabilities, dirty, onChange, onApply }: FilterBarProps) {
+export function FilterBar({ values, dirty, onChange, onApply }: FilterBarProps) {
   return (
     <div className="controls">
       <div role="group" aria-label="Time window">
@@ -41,15 +38,6 @@ export function FilterBar({ values, capabilities, dirty, onChange, onApply }: Fi
           </button>
         ))}
       </div>
-      <label>
-        Function{" "}
-        <select value={values.capability} onChange={(e) => onChange({ capability: e.target.value })}>
-          <option value="">All</option>
-          {capabilities.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-      </label>
       <label>
         Environment{" "}
         <select value={values.environment} onChange={(e) => onChange({ environment: e.target.value as Environment })}>
