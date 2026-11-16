@@ -10,6 +10,7 @@ import {
   MixpanelError,
   parseExportLines,
 } from "./client";
+import { clearDayCache } from "./dayCache";
 
 const config = { user: "u", secret: "s", projectId: "1", region: "eu" as const };
 const range = { from: "2026-01-01", to: "2026-01-01" };
@@ -23,6 +24,10 @@ const fakeFetch = (status: number, body = "") =>
   jest.fn().mockImplementation(() =>
     Promise.resolve(new Response(body, { status })),
   ) as unknown as typeof fetch;
+
+// fetchEvents now caches each exported day. These cases share dates and configs,
+// so without this every case after the first would read another case's events.
+beforeEach(clearDayCache);
 
 describe("getMixpanelConfig", () => {
   it("throws listing missing variables without leaking values", () => {
@@ -346,5 +351,34 @@ describe("filterByProperties", () => {
   });
   it("returns everything when no filters are configured", () => {
     expect(filterByProperties(events, {})).toHaveLength(4);
+  });
+});
+
+describe("fetchEvents caching", () => {
+  it("serves a repeated range from cache instead of re-querying Mixpanel", async () => {
+    const f = fakeFetch(200, '{"event":"page_viewed","properties":{"time":1}}');
+    const wide = { from: "2026-01-01", to: "2026-01-03" };
+    const first = await fetchEvents(wide, config, f);
+    const second = await fetchEvents(wide, config, f);
+    // Three days, fetched once: the second load costs no export queries at all.
+    expect((f as jest.Mock).mock.calls).toHaveLength(3);
+    expect(second).toEqual(first);
+  });
+
+  it("keeps different property filters on separate cache entries", async () => {
+    const f = fakeFetch(200, "");
+    await fetchEvents(range, { ...config, filters: { Lbu: "SG" } }, f);
+    await fetchEvents(range, { ...config, filters: { Lbu: "MY" } }, f);
+    expect((f as jest.Mock).mock.calls).toHaveLength(2);
+  });
+
+  it("retries a rate-limited day rather than caching the failure", async () => {
+    const f = jest
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 429 }))
+      .mockResolvedValueOnce(new Response("", { status: 200 })) as unknown as typeof fetch;
+    await expect(fetchEvents(range, config, f)).rejects.toMatchObject({ kind: "rate_limit" });
+    await expect(fetchEvents(range, config, f)).resolves.toEqual([]);
+    expect((f as jest.Mock).mock.calls).toHaveLength(2);
   });
 });

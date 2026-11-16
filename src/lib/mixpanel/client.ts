@@ -1,4 +1,5 @@
 import "server-only";
+import { cachedDay, dayCacheKey } from "./dayCache";
 import type { MixpanelConfig, MixpanelEvent, MixpanelRegion } from "./types";
 
 const EXPORT_HOSTS: Record<MixpanelRegion, string> = {
@@ -381,9 +382,11 @@ async function fetchDay(
  * Fetches raw events for a date range from the Mixpanel Export API, one request
  * per day so that no single response has to stream the whole range.
  *
- * Note that a range costs one query per day against Mixpanel's limit of 60
- * export queries per hour, so a 30-day window is only affordable a couple of
- * times an hour without caching.
+ * Days are served from the per-day cache (see dayCache), so only days that are
+ * absent or stale reach Mixpanel. This matters because a cold range costs one
+ * query per day against Mixpanel's limit of 60 export queries per hour: a
+ * 30-day window would otherwise be affordable only twice an hour, and paging
+ * the events table re-spent that cost on every click.
  * @param range - Inclusive dates in YYYY-MM-DD format.
  * @param config - Mixpanel settings (defaults to environment).
  * @param fetchImpl - Fetch implementation, injectable for tests.
@@ -403,7 +406,10 @@ export async function fetchEvents(
   let cursor = 0;
   const worker = async (): Promise<void> => {
     for (let i = cursor++; i < days.length; i = cursor++) {
-      perDay[i] = await fetchDay(days[i], config, fetchImpl);
+      const day = days[i];
+      perDay[i] = await cachedDay(dayCacheKey(day, config), day, () =>
+        fetchDay(day, config, fetchImpl),
+      );
     }
   };
   const workers = Array.from(
