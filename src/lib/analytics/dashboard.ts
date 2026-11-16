@@ -22,6 +22,7 @@ export interface EventRow {
  * @param capability - Optional capability filter.
  * @param page - Requested 1-based page.
  * @param pageSize - Rows per page.
+ * @param userId - Optional user (`distinct_id`) to restrict the events to.
  * @returns A page of reduced event rows plus paging metadata.
  */
 export function buildEventsPage(
@@ -30,10 +31,12 @@ export function buildEventsPage(
   capability: string | undefined,
   page: number,
   pageSize: number,
+  userId?: string,
 ): Page<EventRow> {
   const rows = events
     .filter((e) => typeof e.properties.time === "number" && e.properties.time >= sinceEpochSeconds)
     .filter((e) => !capability || e.properties.capability === capability)
+    .filter((e) => userId === undefined || e.properties.distinct_id === userId)
     .sort((a, b) => b.properties.time - a.properties.time)
     .map((e) => ({
       time: e.properties.time,

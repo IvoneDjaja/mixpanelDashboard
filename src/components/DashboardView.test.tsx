@@ -63,11 +63,24 @@ const usersPayload = {
   },
 };
 
+const userEventsPayload = {
+  rows: [{ time: 100, event: "page_viewed", page: "UserPage", userId: "user-1" }],
+  page: 1,
+  pageSize: 10,
+  total: 1,
+  totalPages: 1,
+};
+
 /** Responds to /api/users with the users payload and everything else with the dashboard payload. */
 function routeFetch() {
   fetchMock.mockImplementation(async (url: string) => ({
     ok: true,
-    json: async () => (String(url).startsWith("/api/users") ? usersPayload : payload),
+    json: async () =>
+      String(url).startsWith("/api/users/events")
+        ? userEventsPayload
+        : String(url).startsWith("/api/users")
+          ? usersPayload
+          : payload,
   }));
 }
 
@@ -115,6 +128,39 @@ describe("DashboardView user item", () => {
     await screen.findByText("Page 1 of 3");
     expect(String(fetchMock.mock.calls.at(-1)![0])).toMatch(/^\/api\/dashboard\?/);
     expect(urls().at(-1)!.get("page")).toBe("1");
+  });
+});
+
+describe("DashboardView user events", () => {
+  it("shows a clicked user's events and returns to the list", async () => {
+    routeFetch();
+    await loaded();
+    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "User" }));
+    await userEvent.click(await screen.findByRole("button", { name: "user-1" }));
+    expect(await screen.findByText("UserPage")).toBeInTheDocument();
+    expect(screen.getByText("Events for user-1")).toBeInTheDocument();
+    const last = fetchMock.mock.calls.at(-1)!;
+    expect(String(last[0])).toMatch(/^\/api\/users\/events\?/);
+    expect(urls().at(-1)!.get("userId")).toBe("user-1");
+    expect(urls().at(-1)!.get("page")).toBe("1");
+    expect(headers().at(-1)).toEqual({ "x-environment": "UAT", "x-lbu": "PACS" });
+    await userEvent.click(screen.getByRole("button", { name: "← Back to users" }));
+    expect(await screen.findByRole("button", { name: "user-1" })).toBeInTheDocument();
+    expect(String(fetchMock.mock.calls.at(-1)![0])).toMatch(/^\/api\/users\?/);
+  });
+
+  it("shows an empty state when the user has no events", async () => {
+    fetchMock.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () =>
+        String(url).startsWith("/api/users/events")
+          ? { rows: [], page: 1, pageSize: 10, total: 0, totalPages: 1 }
+          : String(url).startsWith("/api/users") ? usersPayload : payload,
+    }));
+    await loaded();
+    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "User" }));
+    await userEvent.click(await screen.findByRole("button", { name: "user-1" }));
+    expect(await screen.findByText("No events in this window.")).toBeInTheDocument();
   });
 });
 

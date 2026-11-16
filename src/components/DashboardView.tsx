@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DashboardData } from "@/lib/analytics/dashboard";
+import type { DashboardData, EventRow } from "@/lib/analytics/dashboard";
 import type { UsersData } from "@/lib/analytics/users";
 import { DEFAULT_ENVIRONMENT, DEFAULT_LBU, type Environment, type Lbu, type WindowKey } from "@/lib/validation";
-import { DEFAULT_PAGE_SIZE, type PageSize } from "@/lib/pagination";
+import { DEFAULT_PAGE_SIZE, type Page, type PageSize } from "@/lib/pagination";
+import { EventsTable } from "./EventsTable";
 import { FilterBar, type FilterValues } from "./FilterBar";
 import { LeftPane } from "./LeftPane";
 import { PaginatedTable } from "./PaginatedTable";
-import { Pagination } from "./Pagination";
 import { StateMessage } from "./StateMessage";
 import { UsersTable } from "./UsersTable";
 
@@ -22,11 +22,15 @@ type NavId = (typeof NAV_ITEMS)[number]["id"];
 /** API route backing each left pane item. */
 const ENDPOINTS: Record<NavId, string> = { events: "/api/dashboard", users: "/api/users" };
 
+/** API route returning the events of a single user. */
+const USER_EVENTS_ENDPOINT = "/api/users/events";
+
 type Status =
   | { kind: "loading" }
   | { kind: "error"; message: string }
   | { kind: "ok"; item: "events"; data: DashboardData }
-  | { kind: "ok"; item: "users"; data: UsersData };
+  | { kind: "ok"; item: "users"; data: UsersData }
+  | { kind: "ok"; item: "userEvents"; data: Page<EventRow> };
 
 /** Formats seconds as a compact duration such as "1m 05s". */
 function fmtSeconds(s: number): string {
@@ -54,6 +58,7 @@ export function DashboardView() {
     pageSize: DEFAULT_PAGE_SIZE as PageSize,
   });
   const [activeItem, setActiveItem] = useState<NavId>(NAV_ITEMS[0].id);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const filtersDirty =
     pending.window !== applied.window ||
@@ -66,11 +71,13 @@ export function DashboardView() {
     const { window, capability, environment, lbu, page, pageSize } = applied;
     const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
     if (capability) params.set("capability", capability);
+    const item: NavId | "userEvents" = selectedUser ? "userEvents" : activeItem;
+    if (selectedUser) params.set("userId", selectedUser);
     // Keep the previous data on screen while another page of the same item loads (no flicker).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStatus((prev) => (prev.kind === "ok" && prev.item === activeItem ? prev : { kind: "loading" }));
+    setStatus((prev) => (prev.kind === "ok" && prev.item === item ? prev : { kind: "loading" }));
     // Environment and LBU travel as headers so the URL carries only window/paging params.
-    fetch(`${ENDPOINTS[activeItem]}?${params}`, {
+    fetch(`${item === "userEvents" ? USER_EVENTS_ENDPOINT : ENDPOINTS[activeItem]}?${params}`, {
       signal: controller.signal,
       headers: { "x-environment": environment, "x-lbu": lbu },
     })
@@ -78,26 +85,42 @@ export function DashboardView() {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "Request failed");
         setStatus(
-          activeItem === "events"
+          item === "events"
             ? { kind: "ok", item: "events", data: body as DashboardData }
-            : { kind: "ok", item: "users", data: body as UsersData },
+            : item === "users"
+              ? { kind: "ok", item: "users", data: body as UsersData }
+              : { kind: "ok", item: "userEvents", data: body as Page<EventRow> },
         );
       })
       .catch((e: Error) => {
         if (e.name !== "AbortError") setStatus({ kind: "error", message: e.message });
       });
     return () => controller.abort();
-  }, [applied, activeItem]);
+  }, [applied, activeItem, selectedUser]);
 
   /** Switches the left pane item, starting from page 1 with the applied filters. */
   const selectItem = (id: string) => {
     if (id === activeItem) return;
     setActiveItem(id as NavId);
+    setSelectedUser(null);
+    setApplied((a) => ({ ...a, page: 1 }));
+  };
+
+  /** Shows the events of one user, starting from page 1. */
+  const selectUser = (userId: string) => {
+    setSelectedUser(userId);
+    setApplied((a) => ({ ...a, page: 1 }));
+  };
+
+  /** Returns from a user's events to the users list, starting from page 1. */
+  const clearUser = () => {
+    setSelectedUser(null);
     setApplied((a) => ({ ...a, page: 1 }));
   };
 
   const data = status.kind === "ok" && status.item === "events" ? status.data : null;
   const usersData = status.kind === "ok" && status.item === "users" ? status.data : null;
+  const userEventsData = status.kind === "ok" && status.item === "userEvents" ? status.data : null;
   const capabilities = (data ?? usersData)?.capabilities ?? [];
   const filterBar = (
     <FilterBar
@@ -160,24 +183,9 @@ export function DashboardView() {
             </section>
             <section className="wide">
               <h2>Events</h2>
-              {data.events.total === 0 ? <StateMessage kind="empty" message="No events in this window." /> : (
-                <>
-                  <table>
-                    <thead><tr><th>Time</th><th>Event</th><th>Page</th><th>Function</th><th>Login mode</th><th>User</th></tr></thead>
-                    <tbody>
-                      {data.events.rows.map((e, i) => (
-                        <tr key={`${e.time}-${e.userId ?? ""}-${i}`}>
-                          <td>{new Date(e.time * 1000).toLocaleString()}</td><td>{e.event}</td><td>{e.page ?? "—"}</td>
-                          <td>{e.capability ?? "—"}</td><td>{e.signInType ?? "—"}</td><td>{e.userId ?? "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <Pagination page={data.events.page} totalPages={data.events.totalPages} pageSize={applied.pageSize}
-                    onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
-                    onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))} />
-                </>
-              )}
+              <EventsTable events={data.events} pageSize={applied.pageSize}
+                onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
+                onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))} />
             </section>
             <section className="wide">
               <h2>Page performance and latency</h2>
@@ -196,7 +204,7 @@ export function DashboardView() {
           </header>
           {status.kind === "loading" && <StateMessage kind="loading" />}
           {status.kind === "error" && <StateMessage kind="error" message={status.message} />}
-          {usersData && (
+          {!selectedUser && usersData && (
             <section className="panel">
               <h2>Most recent users</h2>
               <UsersTable
@@ -204,7 +212,22 @@ export function DashboardView() {
                 pageSize={applied.pageSize}
                 onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
                 onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))}
+                onSelectUser={selectUser}
               />
+            </section>
+          )}
+          {selectedUser && (
+            <section className="panel">
+              <button type="button" className="link-button" onClick={clearUser}>← Back to users</button>
+              <h2>Events for {selectedUser}</h2>
+              {userEventsData && (
+                <EventsTable
+                  events={userEventsData}
+                  pageSize={applied.pageSize}
+                  onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
+                  onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))}
+                />
+              )}
             </section>
           )}
         </main>

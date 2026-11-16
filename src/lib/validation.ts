@@ -84,6 +84,23 @@ export function validateDashboardQuery(
   };
 }
 
+/** Result of validating a user id parameter. */
+export type UserIdResult = { ok: true; value: string } | { ok: false; error: string };
+
+/**
+ * Validates the required `userId` query parameter.
+ * @param params - URL search params.
+ * @returns The user id, or an error message for a 400 response.
+ */
+export function validateUserId(params: URLSearchParams): UserIdResult {
+  const userId = params.get("userId")?.trim();
+  if (!userId) return { ok: false, error: "userId is required" };
+  if (userId.length > 100 || /[\u0000-\u001f]/.test(userId)) {
+    return { ok: false, error: "userId is invalid" };
+  }
+  return { ok: true, value: userId };
+}
+
 /**
  * Formats an epoch-seconds time as a UTC YYYY-MM-DD string for the export API.
  * @param epochSeconds - Time in seconds.

@@ -24,3 +24,5 @@ th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eceef1; }
 .state-error { color: #b00020; }
 .pagination { display: flex; gap: 12px; align-items: center; justify-content: flex-end; margin-top: 8px; font-size: 0.9rem; }
 button:disabled { opacity: 0.5; cursor: default; }
+
+.link-button { border: none; background: transparent; padding: 0; color: #ed1b2e; text-decoration: underline; }

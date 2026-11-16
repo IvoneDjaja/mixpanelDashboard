@@ -92,4 +92,14 @@ describe("buildEventsPage", () => {
     const clamped = buildEventsPage(events, 0, undefined, 9, 10);
     expect(clamped.page).toBe(1);
   });
+  it("filters by user, newest first", () => {
+    const page = buildEventsPage(events, 0, undefined, 1, 10, "a");
+    expect(page.rows.map((r) => r.time)).toEqual([3700, 160, 100]);
+    expect(page.rows.every((r) => r.userId === "a")).toBe(true);
+  });
+  it("returns an empty page for an unknown user", () => {
+    const page = buildEventsPage(events, 0, undefined, 1, 10, "nobody");
+    expect(page.total).toBe(0);
+    expect(page.rows).toEqual([]);
+  });
 });

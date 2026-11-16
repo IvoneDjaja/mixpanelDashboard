@@ -1,4 +1,4 @@
-import { toDateString, validateDashboardQuery } from "./validation";
+import { toDateString, validateDashboardQuery, validateUserId } from "./validation";
 
 const q = (s: string, headers: Record<string, string> = {}) =>
   validateDashboardQuery(new URLSearchParams(s), new Headers(headers));
@@ -61,5 +61,17 @@ describe("validateDashboardQuery paging", () => {
   });
   it("rejects unsupported page sizes", () => {
     for (const p of ["7", "100", "x"]) expect(q(`pageSize=${p}`).ok).toBe(false);
+  });
+});
+
+describe("validateUserId", () => {
+  it("returns the trimmed user id", () => {
+    expect(validateUserId(new URLSearchParams({ userId: " u1 " }))).toEqual({ ok: true, value: "u1" });
+  });
+  it("rejects missing, blank, too long and control-character ids", () => {
+    expect(validateUserId(new URLSearchParams()).ok).toBe(false);
+    expect(validateUserId(new URLSearchParams({ userId: "  " })).ok).toBe(false);
+    expect(validateUserId(new URLSearchParams({ userId: "x".repeat(101) })).ok).toBe(false);
+    expect(validateUserId(new URLSearchParams({ userId: "a\u0001b" })).ok).toBe(false);
   });
 });
