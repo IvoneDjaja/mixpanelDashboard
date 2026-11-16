@@ -4,10 +4,24 @@ import { DEFAULT_PAGE_SIZE, PAGE_SIZES, isPageSize, type PageSize } from "./pagi
 export const WINDOWS = { "1h": 3600, "24h": 24 * 3600, "30d": 30 * 24 * 3600 } as const;
 export type WindowKey = keyof typeof WINDOWS;
 
+/** Event `Environment` values the dashboard can be scoped to. */
+export const ENVIRONMENTS = ["DEV", "SIT", "UAT", "PROD"] as const;
+export type Environment = (typeof ENVIRONMENTS)[number];
+export const DEFAULT_ENVIRONMENT: Environment = "UAT";
+
+/** Event `LBU` values the dashboard can be scoped to. */
+export const LBUS = ["PACS", "PAMB", "PBTB"] as const;
+export type Lbu = (typeof LBUS)[number];
+export const DEFAULT_LBU: Lbu = "PACS";
+
 /** Validated dashboard query. */
 export interface DashboardQuery {
   window: WindowKey;
   capability?: string;
+  /** Environment the events are scoped to. */
+  environment: Environment;
+  /** Line of business the events are scoped to. */
+  lbu: Lbu;
   /** 1-based page of the events table. */
   page: number;
   /** Rows per page of the events table. */
@@ -20,11 +34,17 @@ export type ValidationResult =
   | { ok: false; error: string };
 
 /**
- * Validates dashboard query parameters.
+ * Validates dashboard query parameters. Environment and LBU are read from the
+ * `x-environment` and `x-lbu` request headers, not the URL, and default to UAT
+ * and PACS when absent.
  * @param params - URL search params.
+ * @param headers - Request headers.
  * @returns The parsed query, or an error message for a 400 response.
  */
-export function validateDashboardQuery(params: URLSearchParams): ValidationResult {
+export function validateDashboardQuery(
+  params: URLSearchParams,
+  headers: Headers = new Headers(),
+): ValidationResult {
   const window = params.get("window") ?? "24h";
   if (!(window in WINDOWS)) {
     return { ok: false, error: "window must be 1h, 24h or 30d" };
@@ -32,6 +52,14 @@ export function validateDashboardQuery(params: URLSearchParams): ValidationResul
   const capability = params.get("capability")?.trim();
   if (capability && (capability.length > 100 || /[\u0000-\u001f]/.test(capability))) {
     return { ok: false, error: "capability is invalid" };
+  }
+  const environment = headers.get("x-environment") ?? DEFAULT_ENVIRONMENT;
+  if (!(ENVIRONMENTS as readonly string[]).includes(environment)) {
+    return { ok: false, error: `environment must be one of ${ENVIRONMENTS.join(", ")}` };
+  }
+  const lbu = headers.get("x-lbu") ?? DEFAULT_LBU;
+  if (!(LBUS as readonly string[]).includes(lbu)) {
+    return { ok: false, error: `lbu must be one of ${LBUS.join(", ")}` };
   }
   const pageParam = params.get("page");
   const page = pageParam === null ? 1 : Number(pageParam);
@@ -45,7 +73,14 @@ export function validateDashboardQuery(params: URLSearchParams): ValidationResul
   }
   return {
     ok: true,
-    value: { window: window as WindowKey, capability: capability || undefined, page, pageSize },
+    value: {
+      window: window as WindowKey,
+      capability: capability || undefined,
+      environment: environment as Environment,
+      lbu: lbu as Lbu,
+      page,
+      pageSize,
+    },
   };
 }
 

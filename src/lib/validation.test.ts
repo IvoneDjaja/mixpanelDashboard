@@ -1,6 +1,7 @@
 import { toDateString, validateDashboardQuery } from "./validation";
 
-const q = (s: string) => validateDashboardQuery(new URLSearchParams(s));
+const q = (s: string, headers: Record<string, string> = {}) =>
+  validateDashboardQuery(new URLSearchParams(s), new Headers(headers));
 
 describe("validateDashboardQuery", () => {
   it("defaults to 24h", () => {
@@ -18,6 +19,27 @@ describe("validateDashboardQuery", () => {
   it("rejects overlong or control-character capabilities", () => {
     expect(q(`capability=${"a".repeat(101)}`).ok).toBe(false);
     expect(q("capability=a%00b").ok).toBe(false);
+  });
+});
+
+describe("validateDashboardQuery environment and lbu", () => {
+  it("defaults to UAT and PACS", () => {
+    expect(q("")).toMatchObject({ ok: true, value: { environment: "UAT", lbu: "PACS" } });
+  });
+  it("accepts every listed environment and LBU", () => {
+    for (const environment of ["DEV", "SIT", "UAT", "PROD"]) {
+      expect(q("", { "x-environment": environment })).toMatchObject({ ok: true, value: { environment } });
+    }
+    for (const lbu of ["PACS", "PAMB", "PBTB"]) {
+      expect(q("", { "x-lbu": lbu })).toMatchObject({ ok: true, value: { lbu } });
+    }
+  });
+  it("ignores environment and lbu in the URL", () => {
+    expect(q("environment=PROD&lbu=PBTB")).toMatchObject({ ok: true, value: { environment: "UAT", lbu: "PACS" } });
+  });
+  it("rejects unknown or wrongly cased values", () => {
+    expect(q("", { "x-environment": "uat" })).toEqual({ ok: false, error: "environment must be one of DEV, SIT, UAT, PROD" });
+    expect(q("", { "x-lbu": "XYZ" })).toEqual({ ok: false, error: "lbu must be one of PACS, PAMB, PBTB" });
   });
 });
 

@@ -26,7 +26,7 @@ A safe prototype or isolated branch is acceptable. Production deployment is not 
 
 ## 4. Data source
 
-- **Environment:** UAT data only (`Environment` property).
+- **Environment:** selectable in the UI (`Environment` property: DEV, SIT, UAT, PROD), default UAT. LBU (`LBU` property: PACS, PAMB, PBTB) is also selectable, default PACS.
 - **Source:** Mixpanel. Sample export: `events-export-3293176-1793696354441.json`.
 - **Access:** Mixpanel access is requested from Anchal.
 
@@ -38,7 +38,7 @@ A safe prototype or isolated branch is acceptable. Production deployment is not 
 | Page / function | `page_name`, `capability`, `widget`, `source_screen` (some events), `$current_url` |
 | Login mode | `sign_in_type` (some events, e.g. `PRUServices`) |
 | User / session | `distinct_id`, `$user_id` (hashed), `$device_id` |
-| Context | `Platform`, `Region`, `Lbu`, `Product`, `Environment`, `$browser`, `$os`, `$screen_width/height` |
+| Context | `Platform`, `Region`, `LBU`, `Product`, `Environment`, `$browser`, `$os`, `$screen_width/height` |
 | Timestamp | `time` (epoch seconds) |
 
 ### Data gaps
@@ -87,7 +87,7 @@ Candidates, in priority order:
 ## 6. Non-functional requirements
 
 - **Stack:** Next.js, React, TypeScript, Mixpanel library.
-- **Security:** Mixpanel credentials stay server-side in environment variables and are never committed or sent to the client. Only UAT data is used. IDs are already hashed. Do not display raw user identifiers.
+- **Security:** Mixpanel credentials stay server-side in environment variables and are never committed or sent to the client. Data is scoped by the Environment and LBU filters (default UAT, PACS). IDs are already hashed. Do not display raw user identifiers.
 - **Privacy:** no real customer data in prompts, logs or commits.
 - **Display:** works at desktop widths.
 - **Quality:** JSDoc on all new functions, unit tests that pass, no lint errors (see CLAUDE.md Definition of Done).
@@ -97,7 +97,7 @@ Candidates, in priority order:
 - Production deployment.
 - Authentication and role management for dashboard users.
 - Real-time streaming.
-- Data from non-UAT environments.
+- Free-form (non-listed) Environment or LBU values.
 
 ## 8. Open questions
 

@@ -29,8 +29,9 @@ export interface MixpanelConfig {
   region: MixpanelRegion;
   /**
    * Event property values the export is restricted to, keyed by property name
-   * (for example `{ Environment: "UAT", Lbu: "SG" }`). All must match. Empty or
-   * absent means no filtering. See PRD section 4.
+   * (for example `{ Environment: "UAT", LBU: "PACS" }`). All must match. Empty or
+   * absent means no filtering. Set per request by the dashboard route from the
+   * Environment and LBU filters. See PRD section 4.
    */
   filters?: Record<string, string>;
 }

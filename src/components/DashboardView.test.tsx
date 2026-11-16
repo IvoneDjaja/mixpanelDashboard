@@ -25,6 +25,8 @@ const payload = {
 
 const fetchMock = jest.fn();
 const urls = () => fetchMock.mock.calls.map(([u]) => new URL(u as string, "http://x").searchParams);
+/** Request headers of each fetch call, in call order. */
+const headers = () => fetchMock.mock.calls.map(([, init]) => (init?.headers ?? {}) as Record<string, string>);
 
 beforeEach(() => {
   fetchMock.mockReset();
@@ -48,6 +50,29 @@ describe("DashboardView fetching", () => {
     expect(urls()[0].get("window")).toBe("24h");
     expect(urls()[0].get("page")).toBe("1");
     expect(urls()[0].get("pageSize")).toBe("10");
+  });
+
+  it("sends the default environment and LBU on mount", async () => {
+    await loaded();
+    expect(headers()[0]["x-environment"]).toBe("UAT");
+    expect(headers()[0]["x-lbu"]).toBe("PACS");
+    expect(urls()[0].has("environment")).toBe(false);
+    expect(urls()[0].has("lbu")).toBe(false);
+  });
+
+  it("fetches environment and LBU only after Apply, resetting to page 1", async () => {
+    await loaded();
+    await userEvent.click(eventsNext());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await userEvent.selectOptions(screen.getByLabelText("Environment"), "SIT");
+    await userEvent.selectOptions(screen.getByLabelText("LBU"), "PBTB");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(headers()[2]["x-environment"]).toBe("SIT");
+    expect(headers()[2]["x-lbu"]).toBe("PBTB");
+    expect(urls()[2].has("environment")).toBe(false);
+    expect(urls()[2].get("page")).toBe("1");
   });
 
   it("does not fetch when window or function change, and enables Apply", async () => {

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import {
   fetchEvents,
   filterByProperties,
+  getMixpanelConfig,
   MixpanelError,
-  readPropertyFilters,
 } from "@/lib/mixpanel/client";
 import { loadEventsFromFile, resolveDataSource } from "@/lib/mixpanel/fixture";
 import { buildDashboard } from "@/lib/analytics/dashboard";
@@ -37,15 +37,17 @@ export const maxDuration = 300;
 
 /**
  * GET /api/dashboard?window=1h|24h|30d&capability=...&page=1&pageSize=10|25|50
+ * Environment and LBU come from the x-environment and x-lbu headers (defaults UAT, PACS).
  * @param request - Incoming request.
  * @returns Dashboard JSON, or a JSON error with an appropriate status.
  */
 export async function GET(request: Request) {
-  const parsed = validateDashboardQuery(new URL(request.url).searchParams);
+  const parsed = validateDashboardQuery(new URL(request.url).searchParams, request.headers);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-  const { window, capability, page, pageSize } = parsed.value;
+  const { window, capability, environment, lbu, page, pageSize } = parsed.value;
+  const filters = { Environment: environment, LBU: lbu };
   const now = Math.floor(Date.now() / 1000);
   const since = now - WINDOWS[window];
 
@@ -53,10 +55,13 @@ export async function GET(request: Request) {
     // MIXPANEL_DATA_SOURCE picks local files (UAT/dev) or the Mixpanel API.
     const loaded = resolveDataSource() === "file"
       ? await loadEventsFromFile(process.env.MIXPANEL_EVENTS_FILE!)
-      : await fetchEvents({ from: toDateString(since), to: toDateString(now) });
+      : await fetchEvents(
+          { from: toDateString(since), to: toDateString(now) },
+          { ...getMixpanelConfig(), filters },
+        );
     // The API path is already filtered server-side; this covers the file path and
     // keeps both sources scoped identically (PRD section 4).
-    const events = filterByProperties(loaded, readPropertyFilters());
+    const events = filterByProperties(loaded, filters);
     return NextResponse.json(buildDashboard(events, window, since, capability, page, pageSize));
   } catch (error) {
     if (error instanceof MixpanelError) {
