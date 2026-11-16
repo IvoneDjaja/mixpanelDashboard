@@ -325,6 +325,18 @@ describe("filterByProperties", () => {
   it("returns everything when no filters are configured", () => {
     expect(filterByProperties(events, {})).toHaveLength(4);
   });
+  it("matches values case-insensitively, as Mixpanel's own where clause does", () => {
+    // Real UAT events carry Environment "uat"; a strict match dropped all of them.
+    const lower = [{ event: "page_viewed", properties: { time: 5, Environment: "uat", LBU: "PACS" } }];
+    expect(times(filterByProperties(lower, { Environment: "UAT", LBU: "PACS" }))).toEqual([5]);
+  });
+  it("still separates genuinely different values", () => {
+    expect(times(filterByProperties(events, { Environment: "prod" }))).toEqual([3]);
+  });
+  it("drops a property that is present but not a string", () => {
+    const odd = [{ event: "page_viewed", properties: { time: 6, Environment: 1, LBU: "PACS" } }];
+    expect(filterByProperties(odd, { Environment: "1" })).toHaveLength(0);
+  });
 });
 
 describe("fetchEvents caching", () => {

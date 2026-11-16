@@ -122,9 +122,27 @@ export function propertyWhereClause(filters: Record<string, string>): string | u
 }
 
 /**
+ * Compares an event property against a required filter value, ignoring case.
+ *
+ * Mixpanel's server-side `where` comparison matches case-insensitively: a filter
+ * of `Environment == "UAT"` returns events whose property is `"uat"`. This local
+ * pass has to agree, because a strict comparison here discarded every event the
+ * API had already accepted and left the dashboard empty.
+ * @param actual - The event's property value.
+ * @param expected - The required value.
+ * @returns True when both are strings differing only in case.
+ */
+function matchesFilterValue(actual: unknown, expected: string): boolean {
+  return typeof actual === "string" && actual.toLowerCase() === expected.toLowerCase();
+}
+
+/**
  * Keeps only events matching every configured property filter. Applied to local
  * fixture files, which Mixpanel's server-side `where` filter cannot reach, and
  * harmless as a second pass over already-filtered API results.
+ *
+ * Values are matched case-insensitively (see matchesFilterValue); property names
+ * are matched exactly, as Mixpanel treats them as case-sensitive.
  * @param events - Events to filter.
  * @param filters - Property name to required value; no filtering when empty.
  * @returns The matching events, or all events when no filters are configured.
@@ -136,7 +154,7 @@ export function filterByProperties(
   const required = Object.entries(filters);
   if (required.length === 0) return events;
   return events.filter((event) =>
-    required.every(([property, value]) => event.properties?.[property] === value),
+    required.every(([property, value]) => matchesFilterValue(event.properties?.[property], value)),
   );
 }
 

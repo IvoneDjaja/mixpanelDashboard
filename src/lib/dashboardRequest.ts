@@ -52,7 +52,49 @@ export async function loadScopedEvents(
       );
   // The API path is already filtered server-side; this covers the file path and
   // keeps both sources scoped identically (PRD section 4).
-  return { events: filterByProperties(loaded, filters), since };
+  const events = filterByProperties(loaded, filters);
+  logScopeDiagnostics(query, filters, since, nowEpochSeconds, loaded, events);
+  return { events, since };
+}
+
+/**
+ * TEMPORARY: explains an empty dashboard by reporting where the events were lost
+ * — never fetched, dropped by the Environment/LBU scope, or outside the window.
+ * Logs only counts, timestamps and Environment/LBU values, never user data.
+ * Remove once the cause is identified.
+ * @param query - The validated query.
+ * @param filters - Environment and LBU the export was scoped to.
+ * @param since - Start of the window, epoch seconds.
+ * @param nowEpochSeconds - Current time in epoch seconds.
+ * @param loaded - Events as returned by the source.
+ * @param events - Events remaining after scoping.
+ */
+function logScopeDiagnostics(
+  query: DashboardQuery,
+  filters: Record<string, string>,
+  since: number,
+  nowEpochSeconds: number,
+  loaded: MixpanelEvent[],
+  events: MixpanelEvent[],
+): void {
+  const times = loaded.map((e) => Number(e.properties.time)).filter((t) => Number.isFinite(t));
+  const seen = new Map<string, number>();
+  for (const e of loaded) {
+    const key = `${String(e.properties.Environment ?? "-")}/${String(e.properties.LBU ?? "-")}`;
+    seen.set(key, (seen.get(key) ?? 0) + 1);
+  }
+  const usable = events.filter(
+    (e) => e.event === "page_viewed" && e.properties.distinct_id && e.properties.page_name,
+  ).length;
+  console.error(
+    `[diag] window=${query.window} source=${resolveDataSource()} ` +
+      `days=${toDateString(since)}..${toDateString(nowEpochSeconds)} ` +
+      `raw=${loaded.length} scopedTo=${filters.Environment}/${filters.LBU} scoped=${events.length} ` +
+      `withPageAndUser=${usable} inWindow=${events.filter((e) => Number(e.properties.time) >= since).length} ` +
+      `since=${since} minTime=${times.length ? Math.min(...times) : "-"} ` +
+      `maxTime=${times.length ? Math.max(...times) : "-"} now=${nowEpochSeconds} ` +
+      `seenEnvLbu=${JSON.stringify(Object.fromEntries(seen))}`,
+  );
 }
 
 /**
