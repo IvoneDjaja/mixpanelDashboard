@@ -1,7 +1,7 @@
 import type { MixpanelEvent } from "@/lib/mixpanel/types";
 import { buildSessions, toPageViews } from "./sessions";
 import { pageVisitStats, type PageVisitStat } from "./pageVisits";
-import { timeOnPageStats, type TimeOnPageStat } from "./timeOnPage";
+import { timeOnPageStats, viewDurations, viewKey, type TimeOnPageStat } from "./timeOnPage";
 import { DEFAULT_PAGE_SIZE, paginate, type Page } from "@/lib/pagination";
 import { loginModeStats, topJourneyPaths, type JourneyPath, type LoginModeStat } from "./journeys";
 
@@ -13,6 +13,8 @@ export interface EventRow {
   capability?: string;
   signInType?: string;
   userId?: string;
+  /** Seconds until the user's next page view in the same session; absent for a session's last view. */
+  durationSeconds?: number;
   /** Every property Mixpanel returned for the event, shown when the row is expanded. */
   properties: Record<string, unknown>;
 }
@@ -35,6 +37,8 @@ export function buildEventsPage(
   pageSize: number,
   userId?: string,
 ): Page<EventRow> {
+  // Durations come from all events so filtering by user or capability never cuts a gap short.
+  const durations = viewDurations(buildSessions(toPageViews(events)));
   const rows = events
     .filter((e) => typeof e.properties.time === "number" && e.properties.time >= sinceEpochSeconds)
     .filter((e) => !capability || e.properties.capability === capability)
@@ -47,6 +51,10 @@ export function buildEventsPage(
       capability: e.properties.capability,
       signInType: e.properties.sign_in_type || undefined,
       userId: e.properties.distinct_id,
+      durationSeconds:
+        e.event === "page_viewed" && e.properties.distinct_id && e.properties.page_name
+          ? durations.get(viewKey(e.properties.distinct_id, e.properties.time, e.properties.page_name))
+          : undefined,
       properties: e.properties,
     }));
   return paginate(rows, page, pageSize);

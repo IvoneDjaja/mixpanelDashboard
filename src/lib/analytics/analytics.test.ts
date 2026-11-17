@@ -102,4 +102,19 @@ describe("buildEventsPage", () => {
     expect(page.total).toBe(0);
     expect(page.rows).toEqual([]);
   });
+  it("adds the time until the user's next view in the same session", () => {
+    const rows = buildEventsPage(events, 0, undefined, 1, 10, "a").rows;
+    const byTime = Object.fromEntries(rows.map((r) => [r.time, r.durationSeconds]));
+    expect(byTime[100]).toBe(60); // Home -> Policy
+    expect(byTime[160]).toBeUndefined(); // last view of its session (next view is > 30 min later)
+    expect(byTime[3700]).toBeUndefined(); // only view of its session
+  });
+  it("keeps durations when filtering by capability", () => {
+    const rows = buildEventsPage(events, 0, "Dashboard", 1, 10).rows;
+    expect(rows.find((r) => r.time === 100)?.durationSeconds).toBe(60);
+  });
+  it("gives no duration to non page_viewed events", () => {
+    const other: MixpanelEvent[] = [...events, { event: "other", properties: { time: 120, distinct_id: "a", page_name: "Home" } }];
+    expect(buildEventsPage(other, 0, undefined, 1, 10, "a").rows.find((r) => r.event === "other")?.durationSeconds).toBeUndefined();
+  });
 });

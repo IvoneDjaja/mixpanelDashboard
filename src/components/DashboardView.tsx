@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { DashboardData, EventRow } from "@/lib/analytics/dashboard";
 import type { UsersData } from "@/lib/analytics/users";
 import { DEFAULT_ENVIRONMENT, DEFAULT_LBU, type Environment, type Lbu, type WindowKey } from "@/lib/validation";
+import { fmtSeconds } from "@/lib/formatDuration";
 import { DEFAULT_PAGE_SIZE, type Page, type PageSize } from "@/lib/pagination";
 import { EventsTable } from "./EventsTable";
 import { FilterBar, type FilterValues } from "./FilterBar";
@@ -31,12 +32,6 @@ type Status =
   | { kind: "ok"; item: "events"; data: DashboardData }
   | { kind: "ok"; item: "users"; data: UsersData }
   | { kind: "ok"; item: "userEvents"; data: Page<EventRow> };
-
-/** Formats seconds as a compact duration such as "1m 05s". */
-function fmtSeconds(s: number): string {
-  const m = Math.floor(s / 60);
-  return m > 0 ? `${m}m ${String(Math.round(s % 60)).padStart(2, "0")}s` : `${Math.round(s)}s`;
-}
 
 /**
  * Dashboard page body: window, environment and LBU controls plus all report tables.

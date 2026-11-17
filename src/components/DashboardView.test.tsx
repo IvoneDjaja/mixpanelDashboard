@@ -14,7 +14,7 @@ const payload = {
   paths: [],
   loginModes: [],
   events: {
-    rows: [{ time: 100, event: "page_viewed", page: "Home", capability: "Onboarding", userId: "a", properties: { time: 100, distinct_id: "a", app_version: "1.2.3" } }],
+    rows: [{ time: 100, event: "page_viewed", page: "Home", capability: "Onboarding", userId: "a", durationSeconds: 65, properties: { time: 100, distinct_id: "a", app_version: "1.2.3" } }],
     page: 1,
     pageSize: 10,
     total: 25,
@@ -253,5 +253,13 @@ describe("DashboardView event row expansion", () => {
     expect(screen.getByText("distinct_id")).toBeInTheDocument();
     await userEvent.click(screen.getByText("Home"));
     expect(screen.queryByText("app_version")).not.toBeInTheDocument();
+  });
+});
+
+describe("DashboardView time spent column", () => {
+  it("shows the time spent on each event, or a dash when unknown", async () => {
+    await loaded();
+    expect(screen.getByRole("columnheader", { name: "Time spent" })).toBeInTheDocument();
+    expect(screen.getByText("1m 05s")).toBeInTheDocument();
   });
 });

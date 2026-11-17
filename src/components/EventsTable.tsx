@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { fmtSeconds } from "@/lib/formatDuration";
 import type { EventRow } from "@/lib/analytics/dashboard";
 import type { Page, PageSize } from "@/lib/pagination";
 import { Pagination } from "./Pagination";
@@ -34,13 +35,13 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, 
   const [expanded, setExpanded] = useState<{ rows: EventRow[]; index: number } | null>(null);
   if (events.total === 0) return <StateMessage kind="empty" message="No events in this window." />;
   const expandedIndex = expanded && expanded.rows === events.rows ? expanded.index : null;
-  const columns = showUser ? 4 : 3;
+  const columns = showUser ? 5 : 4;
   /** Expands row `i`, or collapses it when already open. */
   const toggle = (i: number) => setExpanded(expandedIndex === i ? null : { rows: events.rows, index: i });
   return (
     <>
       <table>
-        <thead><tr><th>Time</th><th>Event</th><th>Page</th>{showUser && <th>User</th>}</tr></thead>
+        <thead><tr><th>Time</th><th>Event</th><th>Page</th><th>Time spent</th>{showUser && <th>User</th>}</tr></thead>
         <tbody>
           {events.rows.map((e, i) => {
             const open = expandedIndex === i;
@@ -59,6 +60,7 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, 
                   }}
                 >
                   <td>{new Date(e.time * 1000).toLocaleString()}</td><td>{e.event}</td><td>{e.page ?? "—"}</td>
+                  <td>{e.durationSeconds === undefined ? "—" : fmtSeconds(e.durationSeconds)}</td>
                   {showUser && <td>{e.userId ?? "—"}</td>}
                 </tr>
                 {open && (
