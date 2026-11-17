@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DashboardData, EventRow } from "@/lib/analytics/dashboard";
+import type { DashboardData, UserEventsData } from "@/lib/analytics/dashboard";
 import type { UsersData } from "@/lib/analytics/users";
 import { DEFAULT_ENVIRONMENT, DEFAULT_LBU, type Environment, type Lbu, type WindowKey } from "@/lib/validation";
 import { fmtSeconds } from "@/lib/formatDuration";
-import { DEFAULT_PAGE_SIZE, type Page, type PageSize } from "@/lib/pagination";
+import { DEFAULT_PAGE_SIZE, type PageSize } from "@/lib/pagination";
 import { EventsTable } from "./EventsTable";
 import { FilterBar, type FilterValues } from "./FilterBar";
 import { LeftPane } from "./LeftPane";
@@ -31,7 +31,7 @@ type Status =
   | { kind: "error"; message: string }
   | { kind: "ok"; item: "events"; data: DashboardData }
   | { kind: "ok"; item: "users"; data: UsersData }
-  | { kind: "ok"; item: "userEvents"; data: Page<EventRow> };
+  | { kind: "ok"; item: "userEvents"; data: UserEventsData };
 
 /**
  * Dashboard page body: window, environment and LBU controls plus all report tables.
@@ -81,7 +81,7 @@ export function DashboardView() {
             ? { kind: "ok", item: "events", data: body as DashboardData }
             : item === "users"
               ? { kind: "ok", item: "users", data: body as UsersData }
-              : { kind: "ok", item: "userEvents", data: body as Page<EventRow> },
+              : { kind: "ok", item: "userEvents", data: body as UserEventsData },
         );
       })
       .catch((e: Error) => {
@@ -211,13 +211,28 @@ export function DashboardView() {
               <button type="button" className="link-button" onClick={clearUser}>← Back to users</button>
               <h2>Events for {selectedUser}</h2>
               {userEventsData && (
-                <EventsTable
-                  events={userEventsData}
-                  showUser={false}
-                  pageSize={applied.pageSize}
-                  onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
-                  onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))}
-                />
+                <>
+                  <div className="grid">
+                    <section>
+                      <h3>Most visited pages</h3>
+                      <PaginatedTable headers={["Page", "Views"]} rows={userEventsData.mostVisited} rowKey={(p) => p.page}
+                        renderRow={(p) => <><td>{p.page}</td><td>{p.views}</td></>} />
+                    </section>
+                    <section>
+                      <h3>Least visited pages</h3>
+                      <PaginatedTable headers={["Page", "Views"]} rows={userEventsData.leastVisited} rowKey={(p) => p.page}
+                        renderRow={(p) => <><td>{p.page}</td><td>{p.views}</td></>} />
+                    </section>
+                  </div>
+                  <h3>Events</h3>
+                  <EventsTable
+                    events={userEventsData.events}
+                    showUser={false}
+                    pageSize={applied.pageSize}
+                    onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
+                    onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))}
+                  />
+                </>
               )}
             </section>
           )}

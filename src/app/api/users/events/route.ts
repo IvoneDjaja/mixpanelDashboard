@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildEventsPage } from "@/lib/analytics/dashboard";
+import { buildUserEvents } from "@/lib/analytics/dashboard";
 import { errorResponse, loadScopedEvents, MAX_DURATION_SECONDS } from "@/lib/dashboardRequest";
 import { validateDashboardQuery, validateUserId } from "@/lib/validation";
 
@@ -10,7 +10,7 @@ export const maxDuration = MAX_DURATION_SECONDS;
  * GET /api/users/events?userId=...&window=1h|24h|30d&capability=...&page=1&pageSize=10|25|50
  * Environment and LBU come from the x-environment and x-lbu headers (defaults UAT, PACS).
  * @param request - Incoming request.
- * @returns One page of the given user's events as JSON, or a JSON error with an appropriate status.
+ * @returns The given user's events page and most/least visited pages as JSON, or a JSON error with an appropriate status.
  */
 export async function GET(request: Request) {
   const searchParams = new URL(request.url).searchParams;
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
   try {
     const { events, since } = await loadScopedEvents(parsed.value, Math.floor(Date.now() / 1000));
-    return NextResponse.json(buildEventsPage(events, since, capability, page, pageSize, user.value));
+    return NextResponse.json(buildUserEvents(events, since, capability, page, pageSize, user.value));
   } catch (error) {
     return errorResponse(error, "/api/users/events", window);
   }

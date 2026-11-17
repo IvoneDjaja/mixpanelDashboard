@@ -60,6 +60,43 @@ export function buildEventsPage(
   return paginate(rows, page, pageSize);
 }
 
+/** What the page shows after a user is selected. */
+export interface UserEventsData {
+  /** Server-paginated events of the user, newest first. */
+  events: Page<EventRow>;
+  /** The user's pages by views, most first. */
+  mostVisited: PageVisitStat[];
+  /** The same pages, least visited first. */
+  leastVisited: PageVisitStat[];
+}
+
+/**
+ * Builds one user's events plus their most and least visited pages.
+ * @param events - Raw Mixpanel events.
+ * @param sinceEpochSeconds - Start of the window.
+ * @param capability - Optional capability filter for the events list.
+ * @param page - Requested 1-based page of events.
+ * @param pageSize - Events per page.
+ * @param userId - The user (`distinct_id`) to report on.
+ * @returns The user's events page and page-visit rankings.
+ */
+export function buildUserEvents(
+  events: MixpanelEvent[],
+  sinceEpochSeconds: number,
+  capability: string | undefined,
+  page: number,
+  pageSize: number,
+  userId: string,
+): UserEventsData {
+  const views = toPageViews(events).filter((v) => v.userId === userId);
+  const visits = pageVisitStats(views, sinceEpochSeconds);
+  return {
+    events: buildEventsPage(events, sinceEpochSeconds, capability, page, pageSize, userId),
+    mostVisited: visits,
+    leastVisited: [...visits].reverse(),
+  };
+}
+
 /** Everything the dashboard page displays. */
 export interface DashboardData {
   window: string;

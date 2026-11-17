@@ -64,11 +64,15 @@ const usersPayload = {
 };
 
 const userEventsPayload = {
-  rows: [{ time: 100, event: "page_viewed", page: "UserPage", userId: "user-1", properties: { time: 100, plan: "gold" } }],
-  page: 1,
-  pageSize: 10,
-  total: 1,
-  totalPages: 1,
+  events: {
+    rows: [{ time: 100, event: "page_viewed", page: "UserPage", userId: "user-1", properties: { time: 100, plan: "gold" } }],
+    page: 1,
+    pageSize: 10,
+    total: 1,
+    totalPages: 1,
+  },
+  mostVisited: [{ page: "UserPage", views: 2, uniqueVisitors: 1 }, { page: "Rare", views: 1, uniqueVisitors: 1 }],
+  leastVisited: [{ page: "Rare", views: 1, uniqueVisitors: 1 }, { page: "UserPage", views: 2, uniqueVisitors: 1 }],
 };
 
 /** Responds to /api/users with the users payload and everything else with the dashboard payload. */
@@ -137,7 +141,12 @@ describe("DashboardView user events", () => {
     await loaded();
     await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "Users" }));
     await userEvent.click(await screen.findByRole("button", { name: "user-1" }));
-    expect(await screen.findByText("UserPage")).toBeInTheDocument();
+    expect(await screen.findByText("Events for user-1")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Most visited pages" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Least visited pages" })).toBeInTheDocument();
+    const tables = screen.getAllByRole("table");
+    expect(within(tables[0]).getAllByRole("row")[1]).toHaveTextContent("UserPage2"); // most visited first
+    expect(within(tables[1]).getAllByRole("row")[1]).toHaveTextContent("Rare1"); // least visited first
     expect(screen.getByText("Events for user-1")).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "User" })).not.toBeInTheDocument();
     const last = fetchMock.mock.calls.at(-1)!;
@@ -155,7 +164,7 @@ describe("DashboardView user events", () => {
       ok: true,
       json: async () =>
         String(url).startsWith("/api/users/events")
-          ? { rows: [], page: 1, pageSize: 10, total: 0, totalPages: 1 }
+          ? { ...userEventsPayload, events: { rows: [], page: 1, pageSize: 10, total: 0, totalPages: 1 } }
           : String(url).startsWith("/api/users") ? usersPayload : payload,
     }));
     await loaded();

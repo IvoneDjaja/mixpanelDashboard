@@ -3,7 +3,7 @@ import { buildSessions, toPageViews } from "./sessions";
 import { pageVisitStats } from "./pageVisits";
 import { timeOnPageStats } from "./timeOnPage";
 import { loginModeStats, topJourneyPaths } from "./journeys";
-import { buildEventsPage } from "./dashboard";
+import { buildEventsPage, buildUserEvents } from "./dashboard";
 
 /** Creates a synthetic page_viewed event. */
 const ev = (user: string, time: number, page: string, capability = "Dashboard", signIn?: string): MixpanelEvent => ({
@@ -116,5 +116,22 @@ describe("buildEventsPage", () => {
   it("gives no duration to non page_viewed events", () => {
     const other: MixpanelEvent[] = [...events, { event: "other", properties: { time: 120, distinct_id: "a", page_name: "Home" } }];
     expect(buildEventsPage(other, 0, undefined, 1, 10, "a").rows.find((r) => r.event === "other")?.durationSeconds).toBeUndefined();
+  });
+});
+
+describe("buildUserEvents", () => {
+  it("ranks only the user's pages and returns their events", () => {
+    const data = buildUserEvents(events, 0, undefined, 1, 10, "a");
+    expect(data.events.total).toBe(3);
+    expect(data.mostVisited).toEqual([
+      { page: "Home", views: 2, uniqueVisitors: 1 },
+      { page: "Policy", views: 1, uniqueVisitors: 1 },
+    ]);
+    expect(data.leastVisited.map((p) => p.page)).toEqual(["Policy", "Home"]);
+  });
+  it("is empty for an unknown user", () => {
+    const data = buildUserEvents(events, 0, undefined, 1, 10, "nobody");
+    expect(data.events.total).toBe(0);
+    expect(data.mostVisited).toEqual([]);
   });
 });
