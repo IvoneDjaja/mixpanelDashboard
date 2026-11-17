@@ -139,6 +139,7 @@ describe("DashboardView user events", () => {
     await userEvent.click(await screen.findByRole("button", { name: "user-1" }));
     expect(await screen.findByText("UserPage")).toBeInTheDocument();
     expect(screen.getByText("Events for user-1")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "User" })).not.toBeInTheDocument();
     const last = fetchMock.mock.calls.at(-1)!;
     expect(String(last[0])).toMatch(/^\/api\/users\/events\?/);
     expect(urls().at(-1)!.get("userId")).toBe("user-1");
@@ -232,5 +233,12 @@ describe("DashboardView fetching", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     expect(urls()[2].get("pageSize")).toBe("25");
     expect(urls()[2].get("page")).toBe("1");
+  });
+});
+
+describe("DashboardView events table", () => {
+  it("shows the User column in the main events table", async () => {
+    await loaded();
+    expect(screen.getByRole("columnheader", { name: "User" })).toBeInTheDocument();
   });
 });

@@ -15,7 +15,7 @@ import { UsersTable } from "./UsersTable";
 /** Items listed in the left pane; the first is shown by default. */
 const NAV_ITEMS = [
   { id: "events", label: "Events" },
-  { id: "users", label: "User" },
+  { id: "users", label: "Users" },
 ] as const;
 type NavId = (typeof NAV_ITEMS)[number]["id"];
 
@@ -218,6 +218,7 @@ export function DashboardView() {
               {userEventsData && (
                 <EventsTable
                   events={userEventsData}
+                  showUser={false}
                   pageSize={applied.pageSize}
                   onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
                   onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))}

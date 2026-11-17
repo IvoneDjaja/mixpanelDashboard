@@ -8,6 +8,8 @@ interface EventsTableProps {
   pageSize: PageSize;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: PageSize) => void;
+  /** Whether to show the User column; hidden when every row belongs to one user. Defaults to true. */
+  showUser?: boolean;
 }
 
 /**
@@ -15,17 +17,17 @@ interface EventsTableProps {
  * @param props - The events page and paging handlers.
  * @returns The events table with a pagination bar, or an empty-state message.
  */
-export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange }: EventsTableProps) {
+export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, showUser = true }: EventsTableProps) {
   if (events.total === 0) return <StateMessage kind="empty" message="No events in this window." />;
   return (
     <>
       <table>
-        <thead><tr><th>Time</th><th>Event</th><th>Page</th><th>User</th></tr></thead>
+        <thead><tr><th>Time</th><th>Event</th><th>Page</th>{showUser && <th>User</th>}</tr></thead>
         <tbody>
           {events.rows.map((e, i) => (
             <tr key={`${e.time}-${e.userId ?? ""}-${i}`}>
               <td>{new Date(e.time * 1000).toLocaleString()}</td><td>{e.event}</td><td>{e.page ?? "—"}</td>
-              <td>{e.userId ?? "—"}</td>
+              {showUser && <td>{e.userId ?? "—"}</td>}
             </tr>
           ))}
         </tbody>
