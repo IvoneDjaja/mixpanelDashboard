@@ -26,3 +26,9 @@ th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eceef1; }
 button:disabled { opacity: 0.5; cursor: default; }
 
 .link-button { border: none; background: transparent; padding: 0; color: #ed1b2e; text-decoration: underline; }
+
+.event-row { cursor: pointer; }
+.event-row:hover { background: #f6f7f9; }
+.event-details dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+.event-details dt { font-weight: 600; }
+.event-details dd { margin: 0; white-space: pre-wrap; word-break: break-word; }

@@ -13,6 +13,8 @@ export interface EventRow {
   capability?: string;
   signInType?: string;
   userId?: string;
+  /** Every property Mixpanel returned for the event, shown when the row is expanded. */
+  properties: Record<string, unknown>;
 }
 
 /**
@@ -45,6 +47,7 @@ export function buildEventsPage(
       capability: e.properties.capability,
       signInType: e.properties.sign_in_type || undefined,
       userId: e.properties.distinct_id,
+      properties: e.properties,
     }));
   return paginate(rows, page, pageSize);
 }

@@ -14,7 +14,7 @@ const payload = {
   paths: [],
   loginModes: [],
   events: {
-    rows: [{ time: 100, event: "page_viewed", page: "Home", capability: "Onboarding", userId: "a" }],
+    rows: [{ time: 100, event: "page_viewed", page: "Home", capability: "Onboarding", userId: "a", properties: { time: 100, distinct_id: "a", app_version: "1.2.3" } }],
     page: 1,
     pageSize: 10,
     total: 25,
@@ -64,7 +64,7 @@ const usersPayload = {
 };
 
 const userEventsPayload = {
-  rows: [{ time: 100, event: "page_viewed", page: "UserPage", userId: "user-1" }],
+  rows: [{ time: 100, event: "page_viewed", page: "UserPage", userId: "user-1", properties: { time: 100, plan: "gold" } }],
   page: 1,
   pageSize: 10,
   total: 1,
@@ -88,26 +88,26 @@ describe("DashboardView user item", () => {
   it("lists User second in the left pane", async () => {
     await loaded();
     const names = within(screen.getByRole("navigation")).getAllByRole("button").map((b) => b.textContent);
-    expect(names).toEqual(["Events", "User"]);
+    expect(names).toEqual(["Events", "Users"]);
   });
 
   it("fetches /api/users with the applied filters and headers, and shows the users", async () => {
     routeFetch();
     await loaded();
-    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "User" }));
+    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "Users" }));
     expect(await screen.findByText("user-1")).toBeInTheDocument();
     const last = fetchMock.mock.calls.at(-1)!;
     expect(String(last[0])).toMatch(/^\/api\/users\?/);
     expect(urls().at(-1)!.get("page")).toBe("1");
     expect(urls().at(-1)!.get("window")).toBe("24h");
     expect(headers().at(-1)).toEqual({ "x-environment": "UAT", "x-lbu": "PACS" });
-    expect(within(screen.getByRole("navigation")).getByRole("button", { name: "User" })).toHaveAttribute("aria-current", "page");
+    expect(within(screen.getByRole("navigation")).getByRole("button", { name: "Users" })).toHaveAttribute("aria-current", "page");
   });
 
   it("keeps the same filter controls and applies them to the users list", async () => {
     routeFetch();
     await loaded();
-    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "User" }));
+    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "Users" }));
     await screen.findByText("user-1");
     await userEvent.selectOptions(screen.getByLabelText("Environment"), "SIT");
     await userEvent.selectOptions(screen.getByLabelText("LBU"), "PBTB");
@@ -120,7 +120,7 @@ describe("DashboardView user item", () => {
     routeFetch();
     await loaded();
     const nav = within(screen.getByRole("navigation"));
-    await userEvent.click(nav.getByRole("button", { name: "User" }));
+    await userEvent.click(nav.getByRole("button", { name: "Users" }));
     await screen.findByText("user-1");
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() => expect(urls().at(-1)!.get("page")).toBe("2"));
@@ -135,7 +135,7 @@ describe("DashboardView user events", () => {
   it("shows a clicked user's events and returns to the list", async () => {
     routeFetch();
     await loaded();
-    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "User" }));
+    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "Users" }));
     await userEvent.click(await screen.findByRole("button", { name: "user-1" }));
     expect(await screen.findByText("UserPage")).toBeInTheDocument();
     expect(screen.getByText("Events for user-1")).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe("DashboardView user events", () => {
           : String(url).startsWith("/api/users") ? usersPayload : payload,
     }));
     await loaded();
-    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "User" }));
+    await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "Users" }));
     await userEvent.click(await screen.findByRole("button", { name: "user-1" }));
     expect(await screen.findByText("No events in this window.")).toBeInTheDocument();
   });
@@ -240,5 +240,18 @@ describe("DashboardView events table", () => {
   it("shows the User column in the main events table", async () => {
     await loaded();
     expect(screen.getByRole("columnheader", { name: "User" })).toBeInTheDocument();
+  });
+});
+
+describe("DashboardView event row expansion", () => {
+  it("expands a clicked event to show all properties and collapses on a second click", async () => {
+    await loaded();
+    expect(screen.queryByText("app_version")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText("Home"));
+    expect(screen.getByText("app_version")).toBeInTheDocument();
+    expect(screen.getByText("1.2.3")).toBeInTheDocument();
+    expect(screen.getByText("distinct_id")).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Home"));
+    expect(screen.queryByText("app_version")).not.toBeInTheDocument();
   });
 });
