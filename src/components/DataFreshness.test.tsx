@@ -27,4 +27,11 @@ describe("DataFreshness", () => {
     render(<DataFreshness fetchedAt={AT} loading onRefresh={onRefresh} />);
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
   });
+
+  it("shows a spinner only while loading", () => {
+    const { container, rerender } = render(<DataFreshness fetchedAt={AT} loading onRefresh={jest.fn()} />);
+    expect(container.querySelector(".spinner")).not.toBeNull();
+    rerender(<DataFreshness fetchedAt={AT} loading={false} onRefresh={jest.fn()} />);
+    expect(container.querySelector(".spinner")).toBeNull();
+  });
 });

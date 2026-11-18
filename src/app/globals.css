@@ -22,6 +22,10 @@ table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eceef1; }
 .state { padding: 12px; color: #555; }
 .state-error { color: #b00020; }
+.state-loading { display: flex; align-items: center; gap: 10px; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #eceef1; border-top-color: #ed1b2e; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 .pagination { display: flex; gap: 12px; align-items: center; justify-content: flex-end; margin-top: 8px; font-size: 0.9rem; }
 button:disabled { opacity: 0.5; cursor: default; }
 .freshness { display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: #5b616b; }

@@ -1,3 +1,5 @@
+import { Spinner } from "./StateMessage";
+
 interface DataFreshnessProps {
   /** When the data was fetched from Mixpanel (epoch milliseconds), or null before the first load. */
   fetchedAt: number | null;
@@ -16,6 +18,7 @@ export function DataFreshness({ fetchedAt, loading, onRefresh }: DataFreshnessPr
   return (
     <div className="freshness">
       {fetchedAt !== null && <span>Data as of {new Date(fetchedAt).toLocaleTimeString()}</span>}
+      {loading && <Spinner />}
       <button type="button" disabled={loading} onClick={onRefresh}>
         Refresh
       </button>
