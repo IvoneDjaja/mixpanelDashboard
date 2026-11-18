@@ -8,7 +8,7 @@ import { DEFAULT_ENVIRONMENT, DEFAULT_LBU, type Environment, type Lbu, type Wind
 import { fmtSeconds } from "@/lib/formatDuration";
 import { DEFAULT_PAGE_SIZE, type PageSize } from "@/lib/pagination";
 import { EventsTable } from "./EventsTable";
-import { FilterBar, type FilterValues } from "./FilterBar";
+import { FilterBar, todayUtc, type FilterValues } from "./FilterBar";
 import { LeftPane } from "./LeftPane";
 import { PaginatedTable } from "./PaginatedTable";
 import { StateMessage } from "./StateMessage";
@@ -44,6 +44,7 @@ export function DashboardView() {
   // Filter edits are held here and never fetch on their own; Apply promotes them.
   const [pending, setPending] = useState<FilterValues>({
     window: "24h" as WindowKey,
+    date: todayUtc(),
     environment: DEFAULT_ENVIRONMENT as Environment,
     lbu: DEFAULT_LBU as Lbu,
   });
@@ -58,13 +59,15 @@ export function DashboardView() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const filtersDirty =
     pending.window !== applied.window ||
+    (pending.window === "day" && pending.date !== applied.date) ||
     pending.environment !== applied.environment ||
     pending.lbu !== applied.lbu;
 
   useEffect(() => {
     const controller = new AbortController();
-    const { window, environment, lbu, page, pageSize } = applied;
+    const { window, date, environment, lbu, page, pageSize } = applied;
     const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
+    if (window === "day") params.set("date", date);
     const item: NavId | "userEvents" = selectedUser ? "userEvents" : activeItem;
     if (selectedUser) params.set("userId", selectedUser);
     // Keep the previous data on screen while another page of the same item loads (no flicker).

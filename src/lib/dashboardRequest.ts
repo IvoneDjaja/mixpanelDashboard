@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { fetchEvents, filterByProperties, MixpanelError } from "@/lib/mixpanel/client";
 import { loadEventsFromFile, resolveDataSource } from "@/lib/mixpanel/fixture";
 import type { MixpanelConfig, MixpanelEvent } from "@/lib/mixpanel/types";
-import { toDateString, WINDOWS, type DashboardQuery } from "@/lib/validation";
+import { dayStartEpoch, toDateString, WINDOWS, type DashboardQuery, type RollingWindowKey } from "@/lib/validation";
 
 const HTTP_STATUS: Record<MixpanelError["kind"], number> = {
   config: 500,
@@ -25,8 +25,8 @@ const PUBLIC_MESSAGE: Record<MixpanelError["kind"], string> = {
 
 /**
  * Upper bound for the handlers. fetchEvents issues one export request per day with
- * its own 60s budget, three at a time, so a wide window can legitimately run for
- * minutes even though no single upstream call does.
+ * its own 60s budget, three at a time, so a slow or retried day can legitimately
+ * run for a while even though no single upstream call does.
  */
 export const MAX_DURATION_SECONDS = 300;
 
@@ -45,11 +45,18 @@ export async function loadScopedEvents(
   config: MixpanelConfig,
 ): Promise<{ events: MixpanelEvent[]; since: number }> {
   const filters = { Environment: query.environment, LBU: query.lbu };
-  const since = nowEpochSeconds - WINDOWS[query.window];
+  // A single day is fetched as exactly one export call (from = to = the day).
+  const range =
+    query.window === "day" && query.date
+      ? { from: query.date, to: query.date }
+      : null;
+  const since = range
+    ? dayStartEpoch(range.from)
+    : nowEpochSeconds - WINDOWS[query.window as RollingWindowKey];
   const loaded = resolveDataSource() === "file"
     ? await loadEventsFromFile(process.env.MIXPANEL_EVENTS_FILE!)
     : await fetchEvents(
-        { from: toDateString(since), to: toDateString(nowEpochSeconds) },
+        range ?? { from: toDateString(since), to: toDateString(nowEpochSeconds) },
         { ...config, filters },
       );
   // The API path is already filtered server-side; this covers the file path and

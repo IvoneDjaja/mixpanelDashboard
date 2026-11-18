@@ -1,8 +1,11 @@
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES, isPageSize, type PageSize } from "./pagination";
 
-/** Time windows the dashboard supports. */
-export const WINDOWS = { "1h": 3600, "24h": 24 * 3600, "30d": 30 * 24 * 3600 } as const;
-export type WindowKey = keyof typeof WINDOWS;
+/** Rolling time windows the dashboard supports, in seconds. */
+export const WINDOWS = { "1h": 3600, "24h": 24 * 3600 } as const;
+/** A rolling window ending now. */
+export type RollingWindowKey = keyof typeof WINDOWS;
+/** A rolling window, or a single UTC calendar day (`"day"`, which carries a `date`). */
+export type WindowKey = RollingWindowKey | "day";
 
 /** Event `Environment` values the dashboard can be scoped to. */
 export const ENVIRONMENTS = ["DEV", "SIT", "UAT", "PROD"] as const;
@@ -17,6 +20,8 @@ export const DEFAULT_LBU: Lbu = "PACS";
 /** Validated dashboard query. */
 export interface DashboardQuery {
   window: WindowKey;
+  /** UTC calendar day (YYYY-MM-DD); present only when `window` is `"day"`. */
+  date?: string;
   capability?: string;
   /** Environment the events are scoped to. */
   environment: Environment;
@@ -44,10 +49,22 @@ export type ValidationResult =
 export function validateDashboardQuery(
   params: URLSearchParams,
   headers: Headers = new Headers(),
+  nowEpochSeconds: number = Math.floor(Date.now() / 1000),
 ): ValidationResult {
   const window = params.get("window") ?? "24h";
-  if (!(window in WINDOWS)) {
-    return { ok: false, error: "window must be 1h, 24h or 30d" };
+  if (window !== "day" && !Object.prototype.hasOwnProperty.call(WINDOWS, window)) {
+    return { ok: false, error: "window must be 1h, 24h or day" };
+  }
+  let date: string | undefined;
+  if (window === "day") {
+    const raw = params.get("date");
+    if (!raw || !isValidDate(raw)) {
+      return { ok: false, error: "date must be a valid YYYY-MM-DD day" };
+    }
+    if (raw > toDateString(nowEpochSeconds)) {
+      return { ok: false, error: "date must not be in the future" };
+    }
+    date = raw;
   }
   const capability = params.get("capability")?.trim();
   if (capability && (capability.length > 100 || /[\u0000-\u001f]/.test(capability))) {
@@ -75,6 +92,7 @@ export function validateDashboardQuery(
     ok: true,
     value: {
       window: window as WindowKey,
+      date,
       capability: capability || undefined,
       environment: environment as Environment,
       lbu: lbu as Lbu,
@@ -149,4 +167,24 @@ export function validateLogin(body: unknown): LoginResult {
  */
 export function toDateString(epochSeconds: number): string {
   return new Date(epochSeconds * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * Checks that a string is a real calendar day in YYYY-MM-DD form.
+ * @param value - Candidate date string.
+ * @returns True when it is well-formed and the day exists (e.g. not 2026-02-30).
+ */
+export function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const ms = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === value;
+}
+
+/**
+ * Start of a UTC calendar day.
+ * @param date - A valid YYYY-MM-DD day (see isValidDate).
+ * @returns Midnight UTC of that day, in epoch seconds.
+ */
+export function dayStartEpoch(date: string): number {
+  return Date.parse(`${date}T00:00:00Z`) / 1000;
 }

@@ -215,24 +215,46 @@ describe("DashboardView fetching", () => {
     await loaded();
     const apply = screen.getByRole("button", { name: "Apply" });
     expect(apply).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Last 30 days" }));
+    await userEvent.click(screen.getByRole("button", { name: "Last hour" }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(apply).toBeEnabled();
   });
 
-  it("fetches once on Apply with the new filters and page 1", async () => {
+  it("sends the date in day mode, only after Apply", async () => {
     await loaded();
-    await userEvent.click(screen.getByRole("button", { name: "Last 30 days" }));
+    await userEvent.click(screen.getByRole("button", { name: "Day" }));
+    await userEvent.click(screen.getByRole("button", { name: "Previous day" }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(urls()[1].get("window")).toBe("30d");
+    expect(urls()[1].get("window")).toBe("day");
+    expect(urls()[1].get("date")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(urls()[0].has("date")).toBe(false);
+  });
+
+  it("enables Apply for a date change only in day mode", async () => {
+    await loaded();
+    await userEvent.click(screen.getByRole("button", { name: "Day" }));
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Previous day" }));
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled();
+  });
+
+  it("fetches once on Apply with the new filters and page 1", async () => {
+    await loaded();
+    await userEvent.click(screen.getByRole("button", { name: "Last hour" }));
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(urls()[1].get("window")).toBe("1h");
     expect(urls()[1].has("capability")).toBe(false);
     expect(urls()[1].get("page")).toBe("1");
   });
 
   it("fetches once on Next using applied filters, ignoring pending edits", async () => {
     await loaded();
-    await userEvent.click(screen.getByRole("button", { name: "Last 30 days" }));
+    await userEvent.click(screen.getByRole("button", { name: "Last hour" }));
     await userEvent.click(eventsNext());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(urls()[1].get("page")).toBe("2");

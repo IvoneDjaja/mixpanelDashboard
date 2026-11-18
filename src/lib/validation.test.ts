@@ -1,24 +1,65 @@
-import { toDateString, validateDashboardQuery, validateLogin, validateUserId } from "./validation";
+import { dayStartEpoch, isValidDate, toDateString, validateDashboardQuery, validateLogin, validateUserId } from "./validation";
+
+/** 2026-11-18T12:00:00Z, the "now" used by the day-window tests. */
+const NOW = Date.parse("2026-11-18T12:00:00Z") / 1000;
 
 const q = (s: string, headers: Record<string, string> = {}) =>
-  validateDashboardQuery(new URLSearchParams(s), new Headers(headers));
+  validateDashboardQuery(new URLSearchParams(s), new Headers(headers), NOW);
 
 describe("validateDashboardQuery", () => {
   it("defaults to 24h", () => {
     expect(q("")).toMatchObject({ ok: true, value: { window: "24h", capability: undefined } });
   });
-  it("accepts 30d and a capability", () => {
-    expect(q("window=30d&capability=Onboarding")).toMatchObject({ ok: true, value: { window: "30d", capability: "Onboarding" } });
+  it("accepts a capability", () => {
+    expect(q("window=24h&capability=Onboarding")).toMatchObject({ ok: true, value: { window: "24h", capability: "Onboarding" } });
+  });
+  it("rejects the removed 30d window", () => {
+    expect(q("window=30d")).toEqual({ ok: false, error: "window must be 1h, 24h or day" });
   });
   it("accepts 1h", () => {
     expect(q("window=1h")).toMatchObject({ ok: true, value: { window: "1h", capability: undefined } });
   });
   it("rejects an invalid window", () => {
-    expect(q("window=7d")).toEqual({ ok: false, error: "window must be 1h, 24h or 30d" });
+    expect(q("window=7d")).toEqual({ ok: false, error: "window must be 1h, 24h or day" });
   });
   it("rejects overlong or control-character capabilities", () => {
     expect(q(`capability=${"a".repeat(101)}`).ok).toBe(false);
     expect(q("capability=a%00b").ok).toBe(false);
+  });
+});
+
+describe("validateDashboardQuery day window", () => {
+  it("accepts a past day and today", () => {
+    expect(q("window=day&date=2026-11-17")).toMatchObject({ ok: true, value: { window: "day", date: "2026-11-17" } });
+    expect(q("window=day&date=2026-11-18")).toMatchObject({ ok: true, value: { window: "day", date: "2026-11-18" } });
+  });
+  it("requires a date", () => {
+    expect(q("window=day").ok).toBe(false);
+  });
+  it("rejects malformed and impossible dates", () => {
+    expect(q("window=day&date=17-11-2026").ok).toBe(false);
+    expect(q("window=day&date=2026-11-1").ok).toBe(false);
+    expect(q("window=day&date=2026-02-30").ok).toBe(false);
+    expect(q("window=day&date=2026-13-01").ok).toBe(false);
+  });
+  it("rejects a future date", () => {
+    expect(q("window=day&date=2026-11-19")).toEqual({ ok: false, error: "date must not be in the future" });
+  });
+  it("ignores date for rolling windows", () => {
+    expect(q("window=24h&date=garbage")).toMatchObject({ ok: true, value: { window: "24h", date: undefined } });
+  });
+});
+
+describe("isValidDate and dayStartEpoch", () => {
+  it("validates real calendar days only", () => {
+    expect(isValidDate("2026-02-28")).toBe(true);
+    expect(isValidDate("2028-02-29")).toBe(true);
+    expect(isValidDate("2026-02-29")).toBe(false);
+    expect(isValidDate("")).toBe(false);
+  });
+  it("returns midnight UTC in epoch seconds", () => {
+    expect(dayStartEpoch("1970-01-02")).toBe(86400);
+    expect(toDateString(dayStartEpoch("2026-11-18"))).toBe("2026-11-18");
   });
 });
 

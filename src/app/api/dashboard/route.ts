@@ -8,7 +8,7 @@ import { validateDashboardQuery } from "@/lib/validation";
 export const maxDuration = MAX_DURATION_SECONDS;
 
 /**
- * GET /api/dashboard?window=1h|24h|30d&capability=...&page=1&pageSize=10|25|50
+ * GET /api/dashboard?window=1h|24h|day[&date=YYYY-MM-DD, required for day]&capability=...&page=1&pageSize=10|25|50
  * Environment and LBU come from the x-environment and x-lbu headers (defaults UAT, PACS).
  * @param request - Incoming request.
  * @returns Dashboard JSON, or a JSON error with an appropriate status.
