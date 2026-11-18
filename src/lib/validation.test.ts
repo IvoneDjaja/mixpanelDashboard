@@ -10,6 +10,12 @@ describe("validateDashboardQuery", () => {
   it("defaults to 24h", () => {
     expect(q("")).toMatchObject({ ok: true, value: { window: "24h", capability: undefined } });
   });
+  it("accepts and validates eventType", () => {
+    expect(q("eventType=%20click%20")).toMatchObject({ ok: true, value: { eventType: "click" } });
+    expect(q("")).toMatchObject({ ok: true, value: { eventType: undefined } });
+    expect(q(`eventType=${"a".repeat(101)}`).ok).toBe(false);
+    expect(q("eventType=a%00b").ok).toBe(false);
+  });
   it("accepts a capability", () => {
     expect(q("window=24h&capability=Onboarding")).toMatchObject({ ok: true, value: { window: "24h", capability: "Onboarding" } });
   });

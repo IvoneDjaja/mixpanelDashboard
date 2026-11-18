@@ -26,6 +26,7 @@ export interface EventRow {
  * @param page - Requested 1-based page.
  * @param pageSize - Rows per page.
  * @param userId - Optional user (`distinct_id`) to restrict the events to.
+ * @param eventType - Optional text the event name must contain (case-insensitive).
  * @returns A page of reduced event rows plus paging metadata.
  */
 export function buildEventsPage(
@@ -35,12 +36,15 @@ export function buildEventsPage(
   page: number,
   pageSize: number,
   userId?: string,
+  eventType?: string,
 ): Page<EventRow> {
+  const needle = eventType?.toLowerCase();
   // Durations come from all events so filtering by user or capability never cuts a gap short.
   const durations = viewDurations(buildSessions(toPageViews(events)));
   const rows = events
     .filter((e) => typeof e.properties.time === "number" && e.properties.time >= sinceEpochSeconds)
     .filter((e) => !capability || e.properties.capability === capability)
+    .filter((e) => !needle || e.event.toLowerCase().includes(needle))
     .filter((e) => userId === undefined || e.properties.distinct_id === userId)
     .sort((a, b) => b.properties.time - a.properties.time)
     .map((e) => ({
@@ -77,6 +81,7 @@ export interface UserEventsData {
  * @param page - Requested 1-based page of events.
  * @param pageSize - Events per page.
  * @param userId - The user (`distinct_id`) to report on.
+ * @param eventType - Optional event name filter for the events list.
  * @returns The user's events page and page-visit rankings.
  */
 export function buildUserEvents(
@@ -86,11 +91,12 @@ export function buildUserEvents(
   page: number,
   pageSize: number,
   userId: string,
+  eventType?: string,
 ): UserEventsData {
   const views = toPageViews(events).filter((v) => v.userId === userId);
   const visits = pageVisitStats(views, sinceEpochSeconds);
   return {
-    events: buildEventsPage(events, sinceEpochSeconds, capability, page, pageSize, userId),
+    events: buildEventsPage(events, sinceEpochSeconds, capability, page, pageSize, userId, eventType),
     mostVisited: visits,
     leastVisited: [...visits].reverse(),
   };
@@ -117,6 +123,7 @@ export interface DashboardData {
  * @param capability - Optional capability filter for the events table.
  * @param page - 1-based page of the events table.
  * @param pageSize - Rows per page of the events table.
+ * @param eventType - Optional event name filter for the events table.
  * @returns Dashboard data.
  */
 export function buildDashboard(
@@ -126,6 +133,7 @@ export function buildDashboard(
   capability?: string,
   page = 1,
   pageSize: number = DEFAULT_PAGE_SIZE,
+  eventType?: string,
 ): DashboardData {
   const views = toPageViews(events).filter((v) => v.time >= sinceEpochSeconds);
   const sessions = buildSessions(views);
@@ -138,6 +146,6 @@ export function buildDashboard(
     mostVisited: visits,
     leastVisited: [...visits].reverse(),
     timeOnPage: timeOnPageStats(sessions),
-    events: buildEventsPage(events, sinceEpochSeconds, capability, page, pageSize),
+    events: buildEventsPage(events, sinceEpochSeconds, capability, page, pageSize, undefined, eventType),
   };
 }

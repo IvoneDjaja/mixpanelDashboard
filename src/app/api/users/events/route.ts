@@ -8,7 +8,7 @@ import { validateDashboardQuery, validateUserId } from "@/lib/validation";
 export const maxDuration = MAX_DURATION_SECONDS;
 
 /**
- * GET /api/users/events?userId=...&window=1h|24h|day[&date=YYYY-MM-DD, required for day]&refresh=1&capability=...&page=1&pageSize=10|25|50
+ * GET /api/users/events?userId=...&window=1h|24h|day[&date=YYYY-MM-DD, required for day]&refresh=1&capability=...&eventType=...&page=1&pageSize=10|25|50
  * Environment and LBU come from the x-environment and x-lbu headers (defaults UAT, PACS).
  * @param request - Incoming request.
  * @returns The given user's events page and most/least visited pages as JSON, or a JSON error with an appropriate status.
@@ -25,11 +25,11 @@ export async function GET(request: Request) {
   if (!user.ok) {
     return NextResponse.json({ error: user.error }, { status: 400 });
   }
-  const { window, capability, page, pageSize } = parsed.value;
+  const { window, capability, eventType, page, pageSize } = parsed.value;
 
   try {
     const { events, since, fetchedAt } = await loadScopedEvents(parsed.value, Math.floor(Date.now() / 1000), config);
-    return NextResponse.json({ ...buildUserEvents(events, since, capability, page, pageSize, user.value), fetchedAt });
+    return NextResponse.json({ ...buildUserEvents(events, since, capability, page, pageSize, user.value, eventType), fetchedAt });
   } catch (error) {
     return errorResponse(error, "/api/users/events", window);
   }

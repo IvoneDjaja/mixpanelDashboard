@@ -72,6 +72,14 @@ describe("buildEventsPage", () => {
     expect(page.rows).toHaveLength(1);
     expect(page.rows[0]).toMatchObject({ page: "Policy", userId: "a" });
   });
+  it("filters by event type, case-insensitively and by substring", () => {
+    const all = buildEventsPage(events, 0, undefined, 1, 10);
+    const name = all.rows[0].event;
+    const hit = buildEventsPage(events, 0, undefined, 1, 10, undefined, name.slice(1, 4).toUpperCase());
+    expect(hit.rows.length).toBeGreaterThan(0);
+    expect(hit.rows.every((r) => r.event.toLowerCase().includes(name.slice(1, 4).toLowerCase()))).toBe(true);
+    expect(buildEventsPage(events, 0, undefined, 1, 10, undefined, "no-such-event").total).toBe(0);
+  });
   it("pages and clamps", () => {
     const first = buildEventsPage(events, 0, undefined, 1, 10);
     expect(first.totalPages).toBe(1);

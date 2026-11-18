@@ -14,6 +14,10 @@ interface EventsTableProps {
   showUser?: boolean;
   /** When provided, the User cell is a button that calls this with the user's id. */
   onSelectUser?: (userId: string) => void;
+  /** The applied event type filter (empty for none). */
+  eventType: string;
+  /** Called with the trimmed text when the user submits the event type filter. */
+  onEventTypeChange: (eventType: string) => void;
 }
 
 /**
@@ -32,16 +36,46 @@ function formatValue(value: unknown): string {
  * @param props - The events page and paging handlers.
  * @returns The events table with a pagination bar, or an empty-state message.
  */
-export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, showUser = true, onSelectUser }: EventsTableProps) {
+export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, showUser = true, onSelectUser, eventType, onEventTypeChange }: EventsTableProps) {
   // Remembers which row of which page is open; a different page of rows shows nothing expanded.
+  // Text being typed; applied on Enter so each keystroke doesn't trigger a request.
+  const [draft, setDraft] = useState(eventType);
   const [expanded, setExpanded] = useState<{ rows: EventRow[]; index: number } | null>(null);
-  if (events.total === 0) return <StateMessage kind="empty" message="No events in this window." />;
+  const filter = (
+    <form
+      className="controls"
+      onSubmit={(f) => {
+        f.preventDefault();
+        if (draft.trim() !== eventType) onEventTypeChange(draft.trim());
+      }}
+    >
+      <label>
+        Event type{" "}
+        <input
+          type="text"
+          value={draft}
+          maxLength={100}
+          placeholder="Filter by event type"
+          onChange={(c) => setDraft(c.target.value)}
+        />
+      </label>
+    </form>
+  );
+  if (events.total === 0) {
+    return (
+      <>
+        {filter}
+        <StateMessage kind="empty" message={eventType ? "No events match this event type." : "No events in this window."} />
+      </>
+    );
+  }
   const expandedIndex = expanded && expanded.rows === events.rows ? expanded.index : null;
   const columns = showUser ? 5 : 4;
   /** Expands row `i`, or collapses it when already open. */
   const toggle = (i: number) => setExpanded(expandedIndex === i ? null : { rows: events.rows, index: i });
   return (
     <>
+      {filter}
       <table>
         <thead><tr><th>Time</th><th>Event</th><th>Page</th><th>Time spent</th>{showUser && <th>User</th>}</tr></thead>
         <tbody>

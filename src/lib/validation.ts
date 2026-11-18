@@ -38,6 +38,8 @@ export interface DashboardQuery {
   /** True when the caller asked to bypass the day cache (`refresh=1`). */
   refresh: boolean;
   capability?: string;
+  /** Case-insensitive text the event name must contain; absent means all event types. */
+  eventType?: string;
   /** Environment the events are scoped to. */
   environment: Environment;
   /** Line of business the events are scoped to. */
@@ -85,6 +87,10 @@ export function validateDashboardQuery(
   if (capability && (capability.length > 100 || /[\u0000-\u001f]/.test(capability))) {
     return { ok: false, error: "capability is invalid" };
   }
+  const eventType = params.get("eventType")?.trim();
+  if (eventType && (eventType.length > 100 || /[\u0000-\u001f]/.test(eventType))) {
+    return { ok: false, error: "eventType is invalid" };
+  }
   const environment = headers.get("x-environment") ?? DEFAULT_ENVIRONMENT;
   if (!(ENVIRONMENTS as readonly string[]).includes(environment)) {
     return { ok: false, error: `environment must be one of ${ENVIRONMENTS.join(", ")}` };
@@ -110,6 +116,7 @@ export function validateDashboardQuery(
       date,
       refresh: params.get("refresh") === "1",
       capability: capability || undefined,
+      eventType: eventType || undefined,
       environment: environment as Environment,
       lbu,
       page,

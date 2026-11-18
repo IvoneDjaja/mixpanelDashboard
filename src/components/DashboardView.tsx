@@ -55,6 +55,7 @@ export function DashboardView() {
     ...pending,
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE as PageSize,
+    eventType: "",
   });
   const [activeItem, setActiveItem] = useState<NavId>(NAV_ITEMS[0].id);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -74,13 +75,14 @@ export function DashboardView() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const { window, date, environment, lbu, page, pageSize } = applied;
+    const { window, date, environment, lbu, page, pageSize, eventType } = applied;
     const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
     if (window === "day") params.set("date", date);
     if (forceRefresh.current) params.set("refresh", "1");
     forceRefresh.current = false;
     const item: NavId | "userEvents" = selectedUser ? "userEvents" : activeItem;
     if (selectedUser) params.set("userId", selectedUser);
+    if (eventType && item !== "users") params.set("eventType", eventType);
     // Keep the previous data on screen while another page of the same item loads (no flicker).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFetching(true);
@@ -121,7 +123,7 @@ export function DashboardView() {
     if (id === activeItem) return;
     setActiveItem(id as NavId);
     setSelectedUser(null);
-    setApplied((a) => ({ ...a, page: 1 }));
+    setApplied((a) => ({ ...a, page: 1, eventType: "" }));
   };
 
   /** Ends the session on the server, then returns to the login page. */
@@ -133,7 +135,7 @@ export function DashboardView() {
   /** Shows the events of one user, starting from page 1. */
   const selectUser = (userId: string) => {
     setSelectedUser(userId);
-    setApplied((a) => ({ ...a, page: 1 }));
+    setApplied((a) => ({ ...a, page: 1, eventType: "" }));
   };
 
   /** Opens a user's page from the events table, starting from page 1. */
@@ -145,7 +147,7 @@ export function DashboardView() {
   /** Returns from a user's events to the users list, starting from page 1. */
   const clearUser = () => {
     setSelectedUser(null);
-    setApplied((a) => ({ ...a, page: 1 }));
+    setApplied((a) => ({ ...a, page: 1, eventType: "" }));
   };
 
   const data = status.kind === "ok" && status.item === "events" ? status.data : null;
@@ -212,6 +214,7 @@ export function DashboardView() {
             <section className="wide">
               <h2>Events</h2>
               <EventsTable events={data.events} pageSize={applied.pageSize} onSelectUser={openUserFromEvents}
+                eventType={applied.eventType} onEventTypeChange={(t) => setApplied((a) => ({ ...a, eventType: t, page: 1 }))}
                 onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
                 onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))} />
             </section>
@@ -262,6 +265,8 @@ export function DashboardView() {
                   <EventsTable
                     events={userEventsData.events}
                     showUser={false}
+                    eventType={applied.eventType}
+                    onEventTypeChange={(t) => setApplied((a) => ({ ...a, eventType: t, page: 1 }))}
                     pageSize={applied.pageSize}
                     onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
                     onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))}
