@@ -52,11 +52,11 @@ export function LoginForm() {
         <h1>Sign in to Mixpanel</h1>
         <label>
           Service account user
-          <input name="user" type="text" autoComplete="off" required />
+          <input name="user" type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} data-1p-ignore data-lpignore="true" required />
         </label>
         <label>
           Service account secret
-          <input name="secret" type="password" autoComplete="off" required />
+          <input name="secret" type="password" autoComplete="new-password" required />
         </label>
         <label>
           Project ID
