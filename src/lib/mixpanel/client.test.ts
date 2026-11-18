@@ -78,7 +78,7 @@ describe("fetchEvents", () => {
     const [url, init] = (f as jest.Mock).mock.calls[0];
     expect(String(url)).toContain("https://data-eu.mixpanel.com/api/2.0/export");
     expect(String(url)).toContain("project_id=1");
-    expect(new URL(String(url)).searchParams.get("event")).toBe('["page_viewed"]');
+    expect(new URL(String(url)).searchParams.get("event")).toBeNull();
     expect(init.headers.Authorization).toBe(`Basic ${Buffer.from("u:s").toString("base64")}`);
     expect(events).toHaveLength(1);
   });

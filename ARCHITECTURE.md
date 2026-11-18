@@ -73,7 +73,7 @@ Query parameters: `window=1h|24h|day`, `date=YYYY-MM-DD` (required for `day`), `
 
 ### Export API: one call per UTC day
 
-`fetchEventsWithMeta` expands the range into days and fetches each with `GET /api/2.0/export` for the single event `page_viewed`. Environment and LBU go into a server-side `where` clause so Mixpanel returns less data. Up to 3 days run at once (Mixpanel's 3 queries/second limit), each with a 60-second budget. Results are concatenated in day order. If any day fails, the whole request fails; there is no partial result.
+`fetchEventsWithMeta` expands the range into days and fetches each with `GET /api/2.0/export` for all events. Environment and LBU go into a server-side `where` clause so Mixpanel returns less data. Up to 3 days run at once (Mixpanel's 3 queries/second limit), each with a 60-second budget. Results are concatenated in day order. If any day fails, the whole request fails; there is no partial result.
 
 ### Day cache
 

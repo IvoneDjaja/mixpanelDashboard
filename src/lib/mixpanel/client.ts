@@ -22,9 +22,6 @@ const MAX_CONCURRENT_DAY_QUERIES = 3;
 /** Budget for the single-event credential check made at login. */
 const VERIFY_TIMEOUT_MS = 15_000;
 
-/** The only event the dashboard analyses (see toPageViews). */
-const PAGE_VIEW_EVENT = "page_viewed";
-
 /** Longest upstream snippet retained on an error for server-side logging. */
 const DETAIL_MAX_LENGTH = 200;
 
@@ -361,8 +358,6 @@ async function fetchDay(
   if (config.projectId) url.searchParams.set("project_id", config.projectId);
   url.searchParams.set("from_date", day);
   url.searchParams.set("to_date", day);
-  // The dashboard only uses page views; filtering server-side shrinks the download.
-  url.searchParams.set("event", JSON.stringify([PAGE_VIEW_EVENT]));
   // Scoping by environment/LBU server-side shrinks it further, which matters
   // because a full day is already close to the per-request budget.
   const where = propertyWhereClause(config.filters ?? {});
