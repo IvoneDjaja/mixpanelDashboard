@@ -48,3 +48,30 @@ describe("FilterBar day mode", () => {
     expect(onChange).toHaveBeenLastCalledWith({ date: "2026-11-11" });
   });
 });
+
+describe("FilterBar LBU", () => {
+  it("is a text input, not a dropdown", () => {
+    setup();
+    const lbu = screen.getByLabelText("LBU");
+    expect(lbu.tagName).toBe("INPUT");
+    expect(lbu).toHaveValue("PACS");
+  });
+
+  it("reports each edit through onChange", async () => {
+    const onChange = setup();
+    await userEvent.type(screen.getByLabelText("LBU"), "X");
+    expect(onChange).toHaveBeenLastCalledWith({ lbu: "PACSX" });
+  });
+
+  it("disables Apply and flags the field for an invalid LBU", () => {
+    setup({ lbu: "" });
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    expect(screen.getByLabelText("LBU")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("enables Apply for a valid, changed LBU", () => {
+    setup({ lbu: "PBTB" });
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled();
+    expect(screen.getByLabelText("LBU")).toHaveAttribute("aria-invalid", "false");
+  });
+});

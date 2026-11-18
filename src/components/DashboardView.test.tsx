@@ -36,6 +36,13 @@ beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch;
 });
 
+/** Replaces the text in the LBU input. */
+async function setLbu(value: string) {
+  const input = screen.getByLabelText("LBU");
+  await userEvent.clear(input);
+  await userEvent.type(input, value);
+}
+
 /** The Events table pager is the last one on the page. */
 const eventsNext = () => screen.getAllByRole("button", { name: "Next" }).at(-1)!;
 
@@ -116,7 +123,7 @@ describe("DashboardView user item", () => {
     await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "Users" }));
     await screen.findByText("user-1");
     await userEvent.selectOptions(screen.getByLabelText("Environment"), "SIT");
-    await userEvent.selectOptions(screen.getByLabelText("LBU"), "PBTB");
+    await setLbu("PBTB");
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(headers().at(-1)).toEqual({ "x-environment": "SIT", "x-lbu": "PBTB" }));
     expect(String(fetchMock.mock.calls.at(-1)![0])).toMatch(/^\/api\/users/);
@@ -193,12 +200,43 @@ describe("DashboardView fetching", () => {
     expect(urls()[0].has("lbu")).toBe(false);
   });
 
+  it("sends a typed LBU trimmed, and only after Apply", async () => {
+    await loaded();
+    await setLbu("  Group Office ");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(headers()[1]["x-lbu"]).toBe("Group Office");
+  });
+
+  it("applies the LBU on Enter", async () => {
+    await loaded();
+    await setLbu("PBTB{Enter}");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(headers()[1]["x-lbu"]).toBe("PBTB");
+  });
+
+  it("does not apply an empty or invalid LBU", async () => {
+    await loaded();
+    await userEvent.clear(screen.getByLabelText("LBU"));
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    expect(screen.getByLabelText("LBU")).toHaveAttribute("aria-invalid", "true");
+    await userEvent.type(screen.getByLabelText("LBU"), 'P"A{Enter}');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("is not dirty when the LBU differs only by surrounding spaces", async () => {
+    await loaded();
+    await userEvent.type(screen.getByLabelText("LBU"), "  ");
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+  });
+
   it("fetches environment and LBU only after Apply, resetting to page 1", async () => {
     await loaded();
     await userEvent.click(eventsNext());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await userEvent.selectOptions(screen.getByLabelText("Environment"), "SIT");
-    await userEvent.selectOptions(screen.getByLabelText("LBU"), "PBTB");
+    await setLbu("PBTB");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));

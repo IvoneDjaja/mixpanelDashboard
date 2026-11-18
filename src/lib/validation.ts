@@ -12,10 +12,23 @@ export const ENVIRONMENTS = ["DEV", "SIT", "UAT", "PROD"] as const;
 export type Environment = (typeof ENVIRONMENTS)[number];
 export const DEFAULT_ENVIRONMENT: Environment = "UAT";
 
-/** Event `LBU` values the dashboard can be scoped to. */
-export const LBUS = ["PACS", "PAMB", "PBTB"] as const;
-export type Lbu = (typeof LBUS)[number];
+/** Event `LBU` value the dashboard is scoped to; free text, so any value Mixpanel has. */
+export type Lbu = string;
+/** LBU used until the user types another. */
 export const DEFAULT_LBU: Lbu = "PACS";
+
+/** Accepted shape of an LBU: short, printable, and free of quotes or control characters. */
+const LBU_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 _.\-]{0,49}$/;
+
+/**
+ * Checks that an LBU is safe to use in an export `where` clause and a cache key.
+ * Membership in a fixed list is deliberately not required.
+ * @param value - Candidate LBU, already trimmed.
+ * @returns True when it is 1-50 letters, digits, spaces, `_`, `.` or `-`, starting alphanumeric.
+ */
+export function isValidLbu(value: string): boolean {
+  return LBU_PATTERN.test(value);
+}
 
 /** Validated dashboard query. */
 export interface DashboardQuery {
@@ -76,9 +89,9 @@ export function validateDashboardQuery(
   if (!(ENVIRONMENTS as readonly string[]).includes(environment)) {
     return { ok: false, error: `environment must be one of ${ENVIRONMENTS.join(", ")}` };
   }
-  const lbu = headers.get("x-lbu") ?? DEFAULT_LBU;
-  if (!(LBUS as readonly string[]).includes(lbu)) {
-    return { ok: false, error: `lbu must be one of ${LBUS.join(", ")}` };
+  const lbu = (headers.get("x-lbu") ?? DEFAULT_LBU).trim();
+  if (!isValidLbu(lbu)) {
+    return { ok: false, error: "lbu is invalid" };
   }
   const pageParam = params.get("page");
   const page = pageParam === null ? 1 : Number(pageParam);
@@ -98,7 +111,7 @@ export function validateDashboardQuery(
       refresh: params.get("refresh") === "1",
       capability: capability || undefined,
       environment: environment as Environment,
-      lbu: lbu as Lbu,
+      lbu,
       page,
       pageSize,
     },

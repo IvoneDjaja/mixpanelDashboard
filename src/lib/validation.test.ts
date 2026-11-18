@@ -84,12 +84,20 @@ describe("validateDashboardQuery environment and lbu", () => {
       expect(q("", { "x-lbu": lbu })).toMatchObject({ ok: true, value: { lbu } });
     }
   });
+  it("accepts any well-formed LBU, trimmed", () => {
+    expect(q("", { "x-lbu": "Group Office-2" })).toMatchObject({ ok: true, value: { lbu: "Group Office-2" } });
+    expect(q("", { "x-lbu": "  pacs  " })).toMatchObject({ ok: true, value: { lbu: "pacs" } });
+  });
+  it("rejects an empty, overlong, quoted or control-character LBU", () => {
+    for (const value of ["", "   ", 'P"A', "P\\A", "P'A", "x".repeat(51), "P\tA", "-PACS"]) {
+      expect(q("", { "x-lbu": value })).toEqual({ ok: false, error: "lbu is invalid" });
+    }
+  });
   it("ignores environment and lbu in the URL", () => {
     expect(q("environment=PROD&lbu=PBTB")).toMatchObject({ ok: true, value: { environment: "UAT", lbu: "PACS" } });
   });
-  it("rejects unknown or wrongly cased values", () => {
+  it("rejects unknown or wrongly cased environments", () => {
     expect(q("", { "x-environment": "uat" })).toEqual({ ok: false, error: "environment must be one of DEV, SIT, UAT, PROD" });
-    expect(q("", { "x-lbu": "XYZ" })).toEqual({ ok: false, error: "lbu must be one of PACS, PAMB, PBTB" });
   });
 });
 

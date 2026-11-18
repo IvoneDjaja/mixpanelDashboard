@@ -70,7 +70,7 @@ export function DashboardView() {
     pending.window !== applied.window ||
     (pending.window === "day" && pending.date !== applied.date) ||
     pending.environment !== applied.environment ||
-    pending.lbu !== applied.lbu;
+    pending.lbu.trim() !== applied.lbu;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -156,7 +156,7 @@ export function DashboardView() {
       values={pending}
       dirty={filtersDirty}
       onChange={(update) => setPending((p) => ({ ...p, ...update }))}
-      onApply={() => setApplied((a) => ({ ...a, ...pending, page: 1 }))}
+      onApply={() => setApplied((a) => ({ ...a, ...pending, lbu: pending.lbu.trim(), page: 1 }))}
     />
     <DataFreshness
       fetchedAt={status.kind === "ok" ? status.fetchedAt : null}

@@ -1,7 +1,7 @@
 import {
   ENVIRONMENTS,
-  LBUS,
   isValidDate,
+  isValidLbu,
   toDateString,
   type Environment,
   type Lbu,
@@ -58,6 +58,9 @@ export function shiftDate(date: string, days: number): string {
  */
 export function FilterBar({ values, dirty, onChange, onApply }: FilterBarProps) {
   const today = todayUtc();
+  // An LBU that the server would reject cannot be applied; Apply stays disabled until it is fixed.
+  const lbuValid = isValidLbu(values.lbu.trim());
+  const canApply = dirty && lbuValid;
   return (
     <div className="controls">
       <div role="group" aria-label="Time window">
@@ -102,13 +105,18 @@ export function FilterBar({ values, dirty, onChange, onApply }: FilterBarProps) 
       </label>
       <label>
         LBU{" "}
-        <select value={values.lbu} onChange={(e) => onChange({ lbu: e.target.value as Lbu })}>
-          {LBUS.map((v) => (
-            <option key={v}>{v}</option>
-          ))}
-        </select>
+        <input
+          type="text"
+          value={values.lbu}
+          maxLength={50}
+          aria-invalid={!lbuValid}
+          onChange={(e) => onChange({ lbu: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && canApply) onApply();
+          }}
+        />
       </label>
-      <button className="apply-button" disabled={!dirty} onClick={onApply}>
+      <button className="apply-button" disabled={!canApply} onClick={onApply}>
         Apply
       </button>
     </div>
