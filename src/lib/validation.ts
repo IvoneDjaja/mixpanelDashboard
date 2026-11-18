@@ -8,7 +8,7 @@ export type RollingWindowKey = keyof typeof WINDOWS;
 export type WindowKey = RollingWindowKey | "day";
 
 /** Event `Environment` values the dashboard can be scoped to. */
-export const ENVIRONMENTS = ["DEV", "SIT", "UAT", "PROD"] as const;
+export const ENVIRONMENTS = ["DEV", "INT", "UAT", "PROD"] as const;
 export type Environment = (typeof ENVIRONMENTS)[number];
 export const DEFAULT_ENVIRONMENT: Environment = "UAT";
 

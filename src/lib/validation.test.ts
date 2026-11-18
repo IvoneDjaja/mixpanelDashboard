@@ -77,7 +77,7 @@ describe("validateDashboardQuery environment and lbu", () => {
     expect(q("")).toMatchObject({ ok: true, value: { environment: "UAT", lbu: "PACS" } });
   });
   it("accepts every listed environment and LBU", () => {
-    for (const environment of ["DEV", "SIT", "UAT", "PROD"]) {
+    for (const environment of ["DEV", "INT", "UAT", "PROD"]) {
       expect(q("", { "x-environment": environment })).toMatchObject({ ok: true, value: { environment } });
     }
     for (const lbu of ["PACS", "PAMB", "PBTB"]) {
@@ -97,7 +97,7 @@ describe("validateDashboardQuery environment and lbu", () => {
     expect(q("environment=PROD&lbu=PBTB")).toMatchObject({ ok: true, value: { environment: "UAT", lbu: "PACS" } });
   });
   it("rejects unknown or wrongly cased environments", () => {
-    expect(q("", { "x-environment": "uat" })).toEqual({ ok: false, error: "environment must be one of DEV, SIT, UAT, PROD" });
+    expect(q("", { "x-environment": "uat" })).toEqual({ ok: false, error: "environment must be one of DEV, INT, UAT, PROD" });
   });
 });
 

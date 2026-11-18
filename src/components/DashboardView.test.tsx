@@ -122,10 +122,10 @@ describe("DashboardView user item", () => {
     await loaded();
     await userEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: "Users" }));
     await screen.findByText("user-1");
-    await userEvent.selectOptions(screen.getByLabelText("Environment"), "SIT");
+    await userEvent.selectOptions(screen.getByLabelText("Environment"), "INT");
     await setLbu("PBTB");
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
-    await waitFor(() => expect(headers().at(-1)).toEqual({ "x-environment": "SIT", "x-lbu": "PBTB" }));
+    await waitFor(() => expect(headers().at(-1)).toEqual({ "x-environment": "INT", "x-lbu": "PBTB" }));
     expect(String(fetchMock.mock.calls.at(-1)![0])).toMatch(/^\/api\/users/);
   });
 
@@ -235,12 +235,12 @@ describe("DashboardView fetching", () => {
     await loaded();
     await userEvent.click(eventsNext());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    await userEvent.selectOptions(screen.getByLabelText("Environment"), "SIT");
+    await userEvent.selectOptions(screen.getByLabelText("Environment"), "INT");
     await setLbu("PBTB");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(headers()[2]["x-environment"]).toBe("SIT");
+    expect(headers()[2]["x-environment"]).toBe("INT");
     expect(headers()[2]["x-lbu"]).toBe("PBTB");
     expect(urls()[2].has("environment")).toBe(false);
     expect(urls()[2].get("page")).toBe("1");
