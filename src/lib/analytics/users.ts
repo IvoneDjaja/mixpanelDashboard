@@ -8,10 +8,9 @@ export interface UserRow {
   lastSeen: number;
   /** Number of the user's events in the window. */
   events: number;
-  /** Page, function and login mode of the user's latest event. */
+  /** Page and function of the user's latest event. */
   lastPage?: string;
   capability?: string;
-  signInType?: string;
 }
 
 /** Everything the users view displays. */
@@ -84,6 +83,5 @@ function toRow(userId: string, e: MixpanelEvent, events: number): UserRow {
     events,
     lastPage: e.properties.page_name,
     capability: e.properties.capability,
-    signInType: e.properties.sign_in_type || undefined,
   };
 }

@@ -175,27 +175,11 @@ export function DashboardView() {
                   renderRow={(p) => <><td>{p.page}</td><td>{fmtSeconds(p.averageSeconds)}</td><td>{fmtSeconds(p.medianSeconds)}</td><td>{p.samples}</td></>} />
               )}
             </section>
-            <section>
-              <h2>Login mode</h2>
-              {data.loginModes.length === 0 ? <StateMessage kind="empty" message="No login mode recorded." /> : (
-                <PaginatedTable headers={["Mode", "Sessions", "Share"]} rows={data.loginModes} rowKey={(m) => m.mode}
-                  renderRow={(m) => <><td>{m.mode}</td><td>{m.sessions}</td><td>{m.percent.toFixed(0)}%</td></>} />
-              )}
-            </section>
-            <section className="wide">
-              <h2>Top journey paths</h2>
-              <PaginatedTable headers={["Path", "Sessions", "Share"]} rows={data.paths} rowKey={(p) => p.path.join(">")}
-                renderRow={(p) => <><td>{p.path.join(" → ")}</td><td>{p.sessions}</td><td>{p.percent.toFixed(0)}%</td></>} />
-            </section>
             <section className="wide">
               <h2>Events</h2>
               <EventsTable events={data.events} pageSize={applied.pageSize}
                 onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
                 onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))} />
-            </section>
-            <section className="wide">
-              <h2>Page performance and latency</h2>
-              <StateMessage kind="empty" message="No latency data: current events don't include a load-time property." />
             </section>
           </div>
         </>

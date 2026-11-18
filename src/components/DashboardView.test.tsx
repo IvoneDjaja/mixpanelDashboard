@@ -15,8 +15,6 @@ const payload = {
   mostVisited: [],
   leastVisited: [],
   timeOnPage: [],
-  paths: [],
-  loginModes: [],
   events: {
     rows: [{ time: 100, event: "page_viewed", page: "Home", capability: "Onboarding", userId: "a", durationSeconds: 65, properties: { time: 100, distinct_id: "a", app_version: "1.2.3" } }],
     page: 1,
@@ -24,7 +22,6 @@ const payload = {
     total: 25,
     totalPages: 3,
   },
-  latencyAvailable: false,
 };
 
 const fetchMock = jest.fn();
@@ -60,7 +57,7 @@ const usersPayload = {
   window: "24h",
   capabilities: ["Onboarding"],
   users: {
-    rows: [{ userId: "user-1", lastSeen: 100, events: 3, lastPage: "Home", capability: "Onboarding", signInType: "Singpass" }],
+    rows: [{ userId: "user-1", lastSeen: 100, events: 3, lastPage: "Home", capability: "Onboarding" }],
     page: 1,
     pageSize: 10,
     total: 25,

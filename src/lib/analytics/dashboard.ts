@@ -3,7 +3,6 @@ import { buildSessions, toPageViews } from "./sessions";
 import { pageVisitStats, type PageVisitStat } from "./pageVisits";
 import { timeOnPageStats, viewDurations, viewKey, type TimeOnPageStat } from "./timeOnPage";
 import { DEFAULT_PAGE_SIZE, paginate, type Page } from "@/lib/pagination";
-import { loginModeStats, topJourneyPaths, type JourneyPath, type LoginModeStat } from "./journeys";
 
 /** One raw event, reduced to the fields the events table shows. */
 export interface EventRow {
@@ -106,12 +105,8 @@ export interface DashboardData {
   mostVisited: PageVisitStat[];
   leastVisited: PageVisitStat[];
   timeOnPage: TimeOnPageStat[];
-  paths: JourneyPath[];
-  loginModes: LoginModeStat[];
   /** Server-paginated raw events table. */
   events: Page<EventRow>;
-  /** Page latency is not captured by the current events. */
-  latencyAvailable: false;
 }
 
 /**
@@ -119,7 +114,7 @@ export interface DashboardData {
  * @param events - Raw Mixpanel events covering the window.
  * @param windowKey - Label of the window (for display).
  * @param sinceEpochSeconds - Start of the window.
- * @param capability - Optional capability filter for journey paths.
+ * @param capability - Optional capability filter for the events table.
  * @param page - 1-based page of the events table.
  * @param pageSize - Rows per page of the events table.
  * @returns Dashboard data.
@@ -143,9 +138,6 @@ export function buildDashboard(
     mostVisited: visits,
     leastVisited: [...visits].reverse(),
     timeOnPage: timeOnPageStats(sessions),
-    paths: topJourneyPaths(sessions, capability),
-    loginModes: loginModeStats(sessions),
     events: buildEventsPage(events, sinceEpochSeconds, capability, page, pageSize),
-    latencyAvailable: false,
   };
 }

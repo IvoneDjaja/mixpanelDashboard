@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { UsersTable } from "./UsersTable";
 
 const users = {
-  rows: [{ userId: "user-1", lastSeen: 100, events: 3, lastPage: "Home", capability: "Onboarding", signInType: "Singpass" }],
+  rows: [{ userId: "user-1", lastSeen: 100, events: 3, lastPage: "Home", capability: "Onboarding" }],
   page: 1,
   pageSize: 10,
   total: 1,

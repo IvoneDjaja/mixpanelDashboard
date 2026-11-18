@@ -2,7 +2,6 @@ import type { MixpanelEvent } from "@/lib/mixpanel/types";
 import { buildSessions, toPageViews } from "./sessions";
 import { pageVisitStats } from "./pageVisits";
 import { timeOnPageStats } from "./timeOnPage";
-import { loginModeStats, topJourneyPaths } from "./journeys";
 import { buildEventsPage, buildUserEvents } from "./dashboard";
 
 /** Creates a synthetic page_viewed event. */
@@ -59,19 +58,6 @@ describe("timeOnPageStats", () => {
   });
   it("returns nothing for single-view sessions", () => {
     expect(timeOnPageStats(buildSessions(toPageViews([ev("a", 1, "Home")])))).toEqual([]);
-  });
-});
-
-describe("journeys", () => {
-  const sessions = buildSessions(toPageViews(events));
-  it("collapses consecutive repeats and filters by capability", () => {
-    const paths = topJourneyPaths(sessions, "Policy Viewing");
-    expect(paths).toEqual([{ path: ["Home", "Policy"], sessions: 1, percent: 100 }]);
-  });
-  it("counts login modes, skipping sessions without one", () => {
-    const modes = loginModeStats(sessions);
-    expect(modes.map((m) => m.mode).sort()).toEqual(["PRUServices", "Singpass"]);
-    expect(modes[0].percent).toBe(50);
   });
 });
 

@@ -31,7 +31,6 @@ describe("buildUsersData", () => {
       events: 2,
       lastPage: "Policy",
       capability: "Policy Viewing",
-      signInType: "PRUServices",
     });
   });
 
