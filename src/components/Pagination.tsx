@@ -9,11 +9,25 @@ interface PaginationProps {
 }
 
 /**
- * Prev/Next controls, a "Page X of Y" label and a rows-per-page selector.
+ * Prev/Next controls, a page number box with an "of Y" label, and a rows-per-page
+ * selector. Typing a page number and pressing Enter (or leaving the box) jumps to
+ * it; the number is clamped to 1..totalPages, and anything that is not a whole
+ * number puts the current page back.
  * @param props - Current paging state and change handlers.
  * @returns The pagination bar.
  */
 export function Pagination({ page, totalPages, pageSize, onPageChange, onPageSizeChange }: PaginationProps) {
+  /**
+   * Applies the number typed into the page box.
+   * @param input - The page number input.
+   */
+  const commit = (input: HTMLInputElement) => {
+    const typed = Number(input.value);
+    const target = Number.isInteger(typed) && input.value.trim() !== "" ? Math.min(Math.max(typed, 1), totalPages) : page;
+    // Show the page actually used, so an out-of-range or invalid entry snaps back.
+    input.value = String(target);
+    if (target !== page) onPageChange(target);
+  };
   return (
     <div className="pagination">
       <label>
@@ -31,7 +45,24 @@ export function Pagination({ page, totalPages, pageSize, onPageChange, onPageSiz
         </select>
       </label>
       <button onClick={() => onPageChange(page - 1)} disabled={page <= 1}>Prev</button>
-      <span aria-live="polite">Page {page} of {totalPages}</span>
+      <label>
+        Page{" "}
+        <input
+          // Remounts when the page changes (Prev/Next, size change), dropping any half-typed value.
+          key={page}
+          type="number"
+          className="page-input"
+          aria-label="Page number"
+          min={1}
+          max={totalPages}
+          defaultValue={page}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit(e.currentTarget);
+          }}
+          onBlur={(e) => commit(e.currentTarget)}
+        />
+      </label>
+      <span aria-live="polite">of {totalPages}</span>
       <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>Next</button>
     </div>
   );

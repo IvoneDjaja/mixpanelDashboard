@@ -27,6 +27,7 @@ th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eceef1; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 .pagination { display: flex; gap: 12px; align-items: center; justify-content: flex-end; margin-top: 8px; font-size: 0.9rem; }
+.page-input { width: 4.5em; padding: 4px 6px; }
 button:disabled { opacity: 0.5; cursor: default; }
 .freshness { display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: #5b616b; }
 .apply-button { background: #ed1b2e; color: #fff; border-color: #ed1b2e; }

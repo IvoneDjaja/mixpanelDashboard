@@ -49,7 +49,7 @@ const eventsNext = () => screen.getAllByRole("button", { name: "Next" }).at(-1)!
 /** Renders the dashboard and waits for the initial load. */
 async function loaded() {
   render(<DashboardView />);
-  await screen.findByText("Page 1 of 3");
+  await screen.findByText("of 3");
 }
 
 describe("DashboardView left pane", () => {
@@ -138,7 +138,7 @@ describe("DashboardView user item", () => {
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() => expect(urls().at(-1)!.get("page")).toBe("2"));
     await userEvent.click(nav.getByRole("button", { name: "Events" }));
-    await screen.findByText("Page 1 of 3");
+    await screen.findByText("of 3");
     expect(String(fetchMock.mock.calls.at(-1)![0])).toMatch(/^\/api\/dashboard\?/);
     expect(urls().at(-1)!.get("page")).toBe("1");
   });
@@ -268,7 +268,7 @@ describe("DashboardView fetching", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(urls()[1].get("refresh")).toBe("1");
     expect(urls()[1].get("window")).toBe("24h");
-    await screen.findByText("Page 1 of 3");
+    await screen.findByText("of 3");
     await userEvent.click(eventsNext());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     expect(urls()[2].has("refresh")).toBe(false);
@@ -290,7 +290,7 @@ describe("DashboardView fetching", () => {
     render(<DashboardView />);
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
     release();
-    await screen.findByText("Page 1 of 3");
+    await screen.findByText("of 3");
     await waitFor(() => expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled());
   });
 
