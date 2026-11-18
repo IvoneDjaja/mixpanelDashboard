@@ -108,7 +108,7 @@ export function FilterBar({ values, dirty, onChange, onApply }: FilterBarProps) 
           ))}
         </select>
       </label>
-      <button disabled={!dirty} onClick={onApply}>
+      <button className="apply-button" disabled={!dirty} onClick={onApply}>
         Apply
       </button>
     </div>
