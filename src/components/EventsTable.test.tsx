@@ -22,7 +22,7 @@ describe("EventsTable user link", () => {
   it("submits the trimmed event type on Enter", () => {
     const onEventTypeChange = jest.fn();
     render(<EventsTable events={events} pageSize={25 as never} onPageChange={jest.fn()} onPageSizeChange={jest.fn()} eventType="" onEventTypeChange={onEventTypeChange} />);
-    const input = screen.getByLabelText(/event type/i);
+    const input = screen.getByPlaceholderText("Filter by event type");
     fireEvent.change(input, { target: { value: " click " } });
     expect(onEventTypeChange).not.toHaveBeenCalled();
     fireEvent.submit(input);
@@ -35,5 +35,16 @@ describe("EventsTable user link", () => {
     render(<EventsTable events={both} pageSize={25 as never} onPageChange={jest.fn()} onPageSizeChange={jest.fn()} eventType="" onEventTypeChange={jest.fn()} />);
     expect(screen.getByText("error_encountered").closest("tr")).toHaveClass("event-error");
     expect(screen.getByText("page_viewed").closest("tr")).not.toHaveClass("event-error");
+  });
+
+  it("applies the event type via the Apply button, enabled only when changed", () => {
+    const onEventTypeChange = jest.fn();
+    render(<EventsTable events={events} pageSize={25 as never} onPageChange={jest.fn()} onPageSizeChange={jest.fn()} eventType="" onEventTypeChange={onEventTypeChange} />);
+    const apply = screen.getByRole("button", { name: "Apply event type" });
+    expect(apply).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText("Filter by event type"), { target: { value: "click" } });
+    expect(apply).toBeEnabled();
+    fireEvent.click(apply);
+    expect(onEventTypeChange).toHaveBeenCalledWith("click");
   });
 });

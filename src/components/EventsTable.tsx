@@ -59,6 +59,9 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, 
           onChange={(c) => setDraft(c.target.value)}
         />
       </label>
+      <button type="submit" className="apply-button" aria-label="Apply event type" disabled={draft.trim() === eventType}>
+        Apply
+      </button>
     </form>
   );
   if (events.total === 0) {
