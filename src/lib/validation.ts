@@ -101,6 +101,47 @@ export function validateUserId(params: URLSearchParams): UserIdResult {
   return { ok: true, value: userId };
 }
 
+/** Validated login form input. */
+export interface LoginInput {
+  user: string;
+  secret: string;
+  projectId: string;
+  region: "us" | "eu" | "in";
+}
+
+/** Result of validating a login body. */
+export type LoginResult = { ok: true; value: LoginInput } | { ok: false; error: string };
+
+/** Longest accepted credential field; real values are far shorter. */
+const LOGIN_FIELD_MAX = 200;
+
+/**
+ * Validates the login request body.
+ * @param body - Parsed JSON body (any shape).
+ * @returns The trimmed credentials, or an error message for a 400 response. The
+ *   message never echoes a submitted value.
+ */
+export function validateLogin(body: unknown): LoginResult {
+  const raw = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const field = (name: string) => (typeof raw[name] === "string" ? (raw[name] as string).trim() : "");
+  const user = field("user");
+  const secret = field("secret");
+  const projectId = field("projectId");
+  const region = field("region");
+
+  if (!user) return { ok: false, error: "Service account user is required" };
+  if (!secret) return { ok: false, error: "Service account secret is required" };
+  if (!projectId) return { ok: false, error: "Project ID is required" };
+  if (user.length > LOGIN_FIELD_MAX || secret.length > LOGIN_FIELD_MAX || /[\u0000-\u001f]/.test(user + secret)) {
+    return { ok: false, error: "Credentials are invalid" };
+  }
+  if (!/^\d{1,20}$/.test(projectId)) return { ok: false, error: "Project ID must be numeric" };
+  if (region !== "us" && region !== "eu" && region !== "in") {
+    return { ok: false, error: "Region must be us, eu or in" };
+  }
+  return { ok: true, value: { user, secret, projectId, region } };
+}
+
 /**
  * Formats an epoch-seconds time as a UTC YYYY-MM-DD string for the export API.
  * @param epochSeconds - Time in seconds.

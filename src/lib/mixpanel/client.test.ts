@@ -8,6 +8,7 @@ import {
   getMixpanelConfig,
   MixpanelError,
   parseExportLines,
+  verifyCredentials,
 } from "./client";
 import { clearDayCache } from "./dayCache";
 
@@ -365,5 +366,33 @@ describe("fetchEvents caching", () => {
     await expect(fetchEvents(range, config, f)).rejects.toMatchObject({ kind: "rate_limit" });
     await expect(fetchEvents(range, config, f)).resolves.toEqual([]);
     expect((f as jest.Mock).mock.calls).toHaveLength(2);
+  });
+});
+
+describe("verifyCredentials", () => {
+  const cfg = { user: "u", secret: "s", projectId: "1", region: "eu" as const };
+  const respond = (status: number, body = "") =>
+    jest.fn().mockResolvedValue(new Response(body, { status })) as unknown as typeof fetch;
+
+  it("resolves when Mixpanel accepts the credentials", async () => {
+    const fetchImpl = respond(200, "");
+    await expect(verifyCredentials(cfg, fetchImpl)).resolves.toBeUndefined();
+    const url = String((fetchImpl as jest.Mock).mock.calls[0][0]);
+    expect(url).toContain("data-eu.mixpanel.com");
+    expect(url).toContain("limit=1");
+  });
+
+  it("maps 401 to an auth error", async () => {
+    await expect(verifyCredentials(cfg, respond(401))).rejects.toMatchObject({ kind: "auth" });
+  });
+
+  it("maps a plan refusal returned with 200 to no_access", async () => {
+    await expect(verifyCredentials(cfg, respond(200, "Your plan does not support raw export")))
+      .rejects.toMatchObject({ kind: "no_access" });
+  });
+
+  it("maps 429 to rate_limit and 500 to upstream", async () => {
+    await expect(verifyCredentials(cfg, respond(429))).rejects.toMatchObject({ kind: "rate_limit" });
+    await expect(verifyCredentials(cfg, respond(500))).rejects.toMatchObject({ kind: "upstream" });
   });
 });

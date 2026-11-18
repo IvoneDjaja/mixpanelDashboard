@@ -32,3 +32,12 @@ button:disabled { opacity: 0.5; cursor: default; }
 .event-details dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
 .event-details dt { font-weight: 600; }
 .event-details dd { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.login-form { width: 100%; max-width: 380px; background: #fff; padding: 24px; border-radius: 6px; display: flex; flex-direction: column; gap: 14px; }
+.login-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.login-form input, .login-form select { padding: 8px; border: 1px solid #c4c9d0; border-radius: 4px; font: inherit; }
+.login-form button[type="submit"] { background: #ed1b2e; color: #fff; border-color: #ed1b2e; border-radius: 4px; padding: 8px 12px; }
+.login-form button[type="submit"]:disabled { opacity: 0.6; cursor: default; }
+.login-error { margin: 0; color: #b00020; font-size: 0.9rem; }
+.sign-out { margin-top: auto; }
+.left-pane { display: flex; flex-direction: column; }

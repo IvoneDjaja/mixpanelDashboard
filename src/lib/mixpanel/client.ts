@@ -19,6 +19,9 @@ const DAY_TIMEOUT_MS = 60_000;
 // respects the per-second limit without needing to pace individual requests.
 const MAX_CONCURRENT_DAY_QUERIES = 3;
 
+/** Budget for the single-event credential check made at login. */
+const VERIFY_TIMEOUT_MS = 15_000;
+
 /** The only event the dashboard analyses (see toPageViews). */
 const PAGE_VIEW_EVENT = "page_viewed";
 
@@ -277,6 +280,71 @@ function toTransportError(
 }
 
 /**
+ * Builds the HTTP Basic Authorization header for a Mixpanel config.
+ * @param config - Mixpanel settings.
+ * @returns Header value. Service account: user:secret. Legacy API Secret: secret
+ *   as username with an empty password.
+ */
+function authorizationHeader(config: MixpanelConfig): string {
+  const credentials = config.user ? `${config.user}:${config.secret}` : `${config.secret}:`;
+  return `Basic ${Buffer.from(credentials).toString("base64")}`;
+}
+
+/**
+ * Checks that credentials, project and region work together by requesting a
+ * single event for today from the Export API (`limit=1`, so it is cheap and
+ * costs one of Mixpanel's 60 export queries per hour).
+ * @param config - Mixpanel settings to verify.
+ * @param fetchImpl - Fetch implementation, injectable for tests.
+ * @throws MixpanelError of kind "auth" when Mixpanel rejects the credentials, or
+ *   another kind for access, rate limit, timeout or upstream failures.
+ */
+export async function verifyCredentials(
+  config: MixpanelConfig,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const url = new URL("/api/2.0/export", EXPORT_HOSTS[config.region]);
+  if (config.projectId) url.searchParams.set("project_id", config.projectId);
+  url.searchParams.set("from_date", today);
+  url.searchParams.set("to_date", today);
+  url.searchParams.set("limit", "1");
+
+  const signal = AbortSignal.timeout(VERIFY_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetchImpl(url, {
+      headers: { Authorization: authorizationHeader(config), Accept: "text/plain" },
+      signal,
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw toTransportError(error, "Could not reach Mixpanel", VERIFY_TIMEOUT_MS, signal);
+  }
+
+  if (response.ok) {
+    // A 200 can still be a plain-text refusal ("Your plan does not support ...").
+    const body = (await response.text().catch(() => "")).trim();
+    if (body !== "" && !body.startsWith("{")) {
+      const detail = toDetail(body);
+      if (NO_ACCESS_MARKERS.some((marker) => detail.toLowerCase().includes(marker))) {
+        throw new MixpanelError("no_access", "Mixpanel project does not allow export API access", detail);
+      }
+      throw new MixpanelError("upstream", "Mixpanel returned a non-JSON response", detail);
+    }
+    return;
+  }
+  const detail = await readDetail(response);
+  if (response.status === 401 || response.status === 403) {
+    throw new MixpanelError("auth", "Mixpanel rejected the credentials", detail);
+  }
+  if (response.status === 429) {
+    throw new MixpanelError("rate_limit", "Mixpanel rate limit reached", detail);
+  }
+  throw new MixpanelError("upstream", `Mixpanel returned ${response.status}`, detail);
+}
+
+/**
  * Fetches raw events for a single day from the Mixpanel Export API.
  * @param day - The day to export, YYYY-MM-DD.
  * @param config - Mixpanel settings.
@@ -300,9 +368,7 @@ async function fetchDay(
   const where = propertyWhereClause(config.filters ?? {});
   if (where) url.searchParams.set("where", where);
 
-  // Service account: user:secret. Legacy API Secret: secret as username, empty password.
-  const credentials = config.user ? `${config.user}:${config.secret}` : `${config.secret}:`;
-  const authorization = `Basic ${Buffer.from(credentials).toString("base64")}`;
+  const authorization = authorizationHeader(config);
 
   // The timeout signal also covers the body download, so both the request and
   // the body read must map aborts to a "timeout" error.

@@ -2,6 +2,10 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DashboardView } from "./DashboardView";
 
+const replace = jest.fn();
+const router = { replace };
+jest.mock("next/navigation", () => ({ useRouter: () => router }));
+
 /** Minimal dashboard payload with a 3-page events table. */
 const payload = {
   window: "24h",
@@ -29,6 +33,7 @@ const urls = () => fetchMock.mock.calls.map(([u]) => new URL(u as string, "http:
 const headers = () => fetchMock.mock.calls.map(([, init]) => (init?.headers ?? {}) as Record<string, string>);
 
 beforeEach(() => {
+  replace.mockReset();
   fetchMock.mockReset();
   fetchMock.mockResolvedValue({ ok: true, json: async () => payload });
   global.fetch = fetchMock as unknown as typeof fetch;
@@ -92,7 +97,7 @@ describe("DashboardView user item", () => {
   it("lists User second in the left pane", async () => {
     await loaded();
     const names = within(screen.getByRole("navigation")).getAllByRole("button").map((b) => b.textContent);
-    expect(names).toEqual(["Events", "Users"]);
+    expect(names).toEqual(["Events", "Users", "Sign out"]);
   });
 
   it("fetches /api/users with the applied filters and headers, and shows the users", async () => {
@@ -270,5 +275,20 @@ describe("DashboardView time spent column", () => {
     await loaded();
     expect(screen.getByRole("columnheader", { name: "Time spent" })).toBeInTheDocument();
     expect(screen.getByText("1m 05s")).toBeInTheDocument();
+  });
+});
+
+describe("DashboardView session", () => {
+  it("redirects to /login when a data request returns 401", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 401, json: async () => ({ error: "Not signed in" }) });
+    render(<DashboardView />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+  });
+
+  it("signs out via /api/logout and returns to /login", async () => {
+    render(<DashboardView />);
+    await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+    expect(fetchMock.mock.calls.some(([u, init]) => u === "/api/logout" && init?.method === "POST")).toBe(true);
   });
 });

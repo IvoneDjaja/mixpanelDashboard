@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildUserEvents } from "@/lib/analytics/dashboard";
-import { errorResponse, loadScopedEvents, MAX_DURATION_SECONDS } from "@/lib/dashboardRequest";
+import { errorResponse, loadScopedEvents, MAX_DURATION_SECONDS, unauthorizedResponse } from "@/lib/dashboardRequest";
+import { getCurrentConfig } from "@/lib/session/requireSession";
 import { validateDashboardQuery, validateUserId } from "@/lib/validation";
 
 /** Upper bound for the handler (see MAX_DURATION_SECONDS). */
@@ -13,6 +14,8 @@ export const maxDuration = MAX_DURATION_SECONDS;
  * @returns The given user's events page and most/least visited pages as JSON, or a JSON error with an appropriate status.
  */
 export async function GET(request: Request) {
+  const config = await getCurrentConfig();
+  if (!config) return unauthorizedResponse();
   const searchParams = new URL(request.url).searchParams;
   const parsed = validateDashboardQuery(searchParams, request.headers);
   if (!parsed.ok) {
@@ -25,7 +28,7 @@ export async function GET(request: Request) {
   const { window, capability, page, pageSize } = parsed.value;
 
   try {
-    const { events, since } = await loadScopedEvents(parsed.value, Math.floor(Date.now() / 1000));
+    const { events, since } = await loadScopedEvents(parsed.value, Math.floor(Date.now() / 1000), config);
     return NextResponse.json(buildUserEvents(events, since, capability, page, pageSize, user.value));
   } catch (error) {
     return errorResponse(error, "/api/users/events", window);

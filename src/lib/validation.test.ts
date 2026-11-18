@@ -1,4 +1,4 @@
-import { toDateString, validateDashboardQuery, validateUserId } from "./validation";
+import { toDateString, validateDashboardQuery, validateLogin, validateUserId } from "./validation";
 
 const q = (s: string, headers: Record<string, string> = {}) =>
   validateDashboardQuery(new URLSearchParams(s), new Headers(headers));
@@ -73,5 +73,33 @@ describe("validateUserId", () => {
     expect(validateUserId(new URLSearchParams({ userId: "  " })).ok).toBe(false);
     expect(validateUserId(new URLSearchParams({ userId: "x".repeat(101) })).ok).toBe(false);
     expect(validateUserId(new URLSearchParams({ userId: "a\u0001b" })).ok).toBe(false);
+  });
+});
+
+describe("validateLogin", () => {
+  const valid = { user: " svc ", secret: "s3cret", projectId: "123", region: "eu" };
+
+  it("accepts and trims valid input", () => {
+    expect(validateLogin(valid)).toEqual({ ok: true, value: { ...valid, user: "svc" } });
+  });
+
+  it.each([
+    [{ ...valid, user: "" }, "user"],
+    [{ ...valid, secret: "" }, "secret"],
+    [{ ...valid, projectId: "" }, "Project ID is required"],
+    [{ ...valid, projectId: "abc" }, "numeric"],
+    [{ ...valid, region: "xx" }, "Region"],
+    [{ ...valid, secret: "a\nb" }, "invalid"],
+    [null, "user"],
+  ])("rejects %j", (body, fragment) => {
+    const result = validateLogin(body);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain(fragment);
+  });
+
+  it("never echoes the secret in an error", () => {
+    const result = validateLogin({ ...valid, secret: "x".repeat(300) });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).not.toContain("xxx");
   });
 });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { fetchEvents, filterByProperties, getMixpanelConfig, MixpanelError } from "@/lib/mixpanel/client";
+import { fetchEvents, filterByProperties, MixpanelError } from "@/lib/mixpanel/client";
 import { loadEventsFromFile, resolveDataSource } from "@/lib/mixpanel/fixture";
-import type { MixpanelEvent } from "@/lib/mixpanel/types";
+import type { MixpanelConfig, MixpanelEvent } from "@/lib/mixpanel/types";
 import { toDateString, WINDOWS, type DashboardQuery } from "@/lib/validation";
 
 const HTTP_STATUS: Record<MixpanelError["kind"], number> = {
@@ -35,12 +35,14 @@ export const MAX_DURATION_SECONDS = 300;
  * MIXPANEL_DATA_SOURCE picks local files (UAT/dev) or the Mixpanel API.
  * @param query - Validated dashboard query.
  * @param nowEpochSeconds - Current time in epoch seconds.
+ * @param config - The signed-in user's Mixpanel settings (see getCurrentConfig).
  * @returns The scoped events and the start of the window.
  * @throws MixpanelError on configuration, auth, rate limit, timeout or upstream failures.
  */
 export async function loadScopedEvents(
   query: DashboardQuery,
   nowEpochSeconds: number,
+  config: MixpanelConfig,
 ): Promise<{ events: MixpanelEvent[]; since: number }> {
   const filters = { Environment: query.environment, LBU: query.lbu };
   const since = nowEpochSeconds - WINDOWS[query.window];
@@ -48,7 +50,7 @@ export async function loadScopedEvents(
     ? await loadEventsFromFile(process.env.MIXPANEL_EVENTS_FILE!)
     : await fetchEvents(
         { from: toDateString(since), to: toDateString(nowEpochSeconds) },
-        { ...getMixpanelConfig(), filters },
+        { ...config, filters },
       );
   // The API path is already filtered server-side; this covers the file path and
   // keeps both sources scoped identically (PRD section 4).
@@ -95,6 +97,14 @@ function logScopeDiagnostics(
       `maxTime=${times.length ? Math.max(...times) : "-"} now=${nowEpochSeconds} ` +
       `seenEnvLbu=${JSON.stringify(Object.fromEntries(seen))}`,
   );
+}
+
+/**
+ * JSON 401 returned by data routes when there is no valid session.
+ * @returns The 401 response.
+ */
+export function unauthorizedResponse(): NextResponse {
+  return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 }
 
 /**

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { DashboardData, UserEventsData } from "@/lib/analytics/dashboard";
 import type { UsersData } from "@/lib/analytics/users";
 import { DEFAULT_ENVIRONMENT, DEFAULT_LBU, type Environment, type Lbu, type WindowKey } from "@/lib/validation";
@@ -39,6 +40,7 @@ type Status =
  * @returns The dashboard UI.
  */
 export function DashboardView() {
+  const router = useRouter();
   // Filter edits are held here and never fetch on their own; Apply promotes them.
   const [pending, setPending] = useState<FilterValues>({
     window: "24h" as WindowKey,
@@ -74,6 +76,11 @@ export function DashboardView() {
       headers: { "x-environment": environment, "x-lbu": lbu },
     })
       .then(async (res) => {
+        if (res.status === 401) {
+          // Session ended (expired or server restarted); sign in again.
+          router.replace("/login");
+          return;
+        }
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "Request failed");
         setStatus(
@@ -88,7 +95,7 @@ export function DashboardView() {
         if (e.name !== "AbortError") setStatus({ kind: "error", message: e.message });
       });
     return () => controller.abort();
-  }, [applied, activeItem, selectedUser]);
+  }, [applied, activeItem, selectedUser, router]);
 
   /** Switches the left pane item, starting from page 1 with the applied filters. */
   const selectItem = (id: string) => {
@@ -96,6 +103,12 @@ export function DashboardView() {
     setActiveItem(id as NavId);
     setSelectedUser(null);
     setApplied((a) => ({ ...a, page: 1 }));
+  };
+
+  /** Ends the session on the server, then returns to the login page. */
+  const signOut = async () => {
+    await fetch("/api/logout", { method: "POST" }).catch(() => undefined);
+    router.replace("/login");
   };
 
   /** Shows the events of one user, starting from page 1. */
@@ -124,7 +137,7 @@ export function DashboardView() {
 
   return (
     <div className="shell">
-      <LeftPane items={[...NAV_ITEMS]} activeId={activeItem} onSelect={selectItem} />
+      <LeftPane items={[...NAV_ITEMS]} activeId={activeItem} onSelect={selectItem} onSignOut={signOut} />
       {activeItem === "events" && (
     <main className="dashboard">
       <header>
