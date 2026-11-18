@@ -28,4 +28,12 @@ describe("EventsTable user link", () => {
     fireEvent.submit(input);
     expect(onEventTypeChange).toHaveBeenCalledWith("click");
   });
+
+  it("highlights error_encountered rows only", () => {
+    const err = { ...row, event: "error_encountered" } as EventRow;
+    const both = { rows: [row, err], total: 2, page: 1, totalPages: 1 } as never;
+    render(<EventsTable events={both} pageSize={25 as never} onPageChange={jest.fn()} onPageSizeChange={jest.fn()} eventType="" onEventTypeChange={jest.fn()} />);
+    expect(screen.getByText("error_encountered").closest("tr")).toHaveClass("event-error");
+    expect(screen.getByText("page_viewed").closest("tr")).not.toHaveClass("event-error");
+  });
 });

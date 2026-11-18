@@ -84,7 +84,7 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, 
             return (
               <Fragment key={`${e.time}-${e.userId ?? ""}-${i}`}>
                 <tr
-                  className="event-row"
+                  className={e.event === "error_encountered" ? "event-row event-error" : "event-row"}
                   tabIndex={0}
                   aria-expanded={open}
                   onClick={() => toggle(i)}

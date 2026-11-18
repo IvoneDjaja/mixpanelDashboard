@@ -36,6 +36,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .event-row { cursor: pointer; }
 .event-row:hover { background: #f6f7f9; }
+.event-row.event-error { background: #fdecec; }
+.event-row.event-error:hover { background: #fadada; }
 .event-details dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
 .event-details dt { font-weight: 600; }
 .event-details dd { margin: 0; white-space: pre-wrap; word-break: break-word; }
