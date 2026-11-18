@@ -25,6 +25,23 @@ export const MAX_ENTRIES = 120;
 interface CacheEntry {
   events: Promise<MixpanelEvent[]>;
   expiresAt: number;
+  /** When the loader was started, in epoch milliseconds: the "data as of" time. */
+  fetchedAt: number;
+}
+
+/** A day's events and when they were fetched from Mixpanel. */
+export interface CachedDay {
+  events: MixpanelEvent[];
+  /** Epoch milliseconds at which the events were requested from Mixpanel. */
+  fetchedAt: number;
+}
+
+/** Options for cachedDayWithMeta. */
+export interface CachedDayOptions {
+  /** Skip a fresh cached entry and reload the day, replacing the entry. */
+  force?: boolean;
+  /** Current time in epoch milliseconds (defaults to Date.now()). */
+  now?: number;
 }
 
 const cache = new Map<string, CacheEntry>();
@@ -66,12 +83,15 @@ function evictOldest(): void {
 }
 
 /**
- * Returns a day's events from cache, loading them when absent or stale.
+ * Returns a day's events and fetch time from cache, loading them when absent,
+ * stale or forced.
  *
  * The entry stores the pending promise, which de-duplicates concurrent requests
  * for the same day: a second caller awaits the first caller's export rather than
- * issuing its own. Failures are never cached, so a rate-limited or timed-out day
- * is retried on the next request.
+ * issuing its own. A forced call always starts its own loader. Failures are never
+ * cached, so a rate-limited or timed-out day is retried on the next request; a
+ * failed forced reload puts the previous entry back, so a rate-limited refresh
+ * does not empty the cache.
  *
  * The expiry is fixed when the entry is written, so a day cached just before
  * midnight keeps its short TTL and is reloaded once afterwards, then held for
@@ -79,9 +99,51 @@ function evictOldest(): void {
  * @param key - Cache key from dayCacheKey.
  * @param day - The day being loaded, YYYY-MM-DD; selects the TTL.
  * @param loader - Fetches the day when the cache cannot serve it.
+ * @param options - `force` to bypass a fresh entry; `now` to inject the clock.
+ * @returns The day's events and when they were fetched.
+ * @throws Whatever `loader` rejects with, after dropping (or restoring) the entry.
+ */
+export async function cachedDayWithMeta(
+  key: string,
+  day: string,
+  loader: () => Promise<MixpanelEvent[]>,
+  options: CachedDayOptions = {},
+): Promise<CachedDay> {
+  const now = options.now ?? Date.now();
+  const existing = cache.get(key);
+  if (!options.force && existing && existing.expiresAt > now) {
+    return { events: await existing.events, fetchedAt: existing.fetchedAt };
+  }
+
+  const events = loader();
+  const ttl = isPastDay(day, now) ? PAST_DAY_TTL_MS : LIVE_DAY_TTL_MS;
+  const entry: CacheEntry = { events, expiresAt: now + ttl, fetchedAt: now };
+  // Delete first so a refreshed entry moves to the back of the eviction order.
+  cache.delete(key);
+  cache.set(key, entry);
+  evictOldest();
+
+  try {
+    return { events: await events, fetchedAt: entry.fetchedAt };
+  } catch (error) {
+    // Only touch our own entry: a later refresh may already have replaced it.
+    if (cache.get(key) === entry) {
+      cache.delete(key);
+      if (options.force && existing) cache.set(key, existing);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Returns a day's events from cache, loading them when absent or stale.
+ * See cachedDayWithMeta for the caching rules.
+ * @param key - Cache key from dayCacheKey.
+ * @param day - The day being loaded, YYYY-MM-DD; selects the TTL.
+ * @param loader - Fetches the day when the cache cannot serve it.
  * @param now - Current time in epoch milliseconds (defaults to Date.now()).
  * @returns The day's events.
- * @throws Whatever `loader` rejects with, after dropping the failed entry.
+ * @throws Whatever `loader` rejects with.
  */
 export async function cachedDay(
   key: string,
@@ -89,23 +151,7 @@ export async function cachedDay(
   loader: () => Promise<MixpanelEvent[]>,
   now: number = Date.now(),
 ): Promise<MixpanelEvent[]> {
-  const existing = cache.get(key);
-  if (existing && existing.expiresAt > now) return existing.events;
-
-  const events = loader();
-  const ttl = isPastDay(day, now) ? PAST_DAY_TTL_MS : LIVE_DAY_TTL_MS;
-  // Delete first so a refreshed entry moves to the back of the eviction order.
-  cache.delete(key);
-  cache.set(key, { events, expiresAt: now + ttl });
-  evictOldest();
-
-  try {
-    return await events;
-  } catch (error) {
-    // Only remove our own entry: a later refresh may already have replaced it.
-    if (cache.get(key)?.events === events) cache.delete(key);
-    throw error;
-  }
+  return (await cachedDayWithMeta(key, day, loader, { now })).events;
 }
 
 /** Empties the cache. Used by tests to keep cases isolated. */

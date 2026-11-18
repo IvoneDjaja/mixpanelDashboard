@@ -5,6 +5,7 @@ import {
   filterByProperties,
   propertyWhereClause,
   fetchEvents,
+  fetchEventsWithMeta,
   getMixpanelConfig,
   MixpanelError,
   parseExportLines,
@@ -394,5 +395,39 @@ describe("verifyCredentials", () => {
   it("maps 429 to rate_limit and 500 to upstream", async () => {
     await expect(verifyCredentials(cfg, respond(429))).rejects.toMatchObject({ kind: "rate_limit" });
     await expect(verifyCredentials(cfg, respond(500))).rejects.toMatchObject({ kind: "upstream" });
+  });
+});
+
+describe("fetchEventsWithMeta", () => {
+  const wide = { from: "2026-01-01", to: "2026-01-03" };
+  const row = '{"event":"page_viewed","properties":{"time":1}}';
+
+  it("reports the fetch time and keeps it on cache hits", async () => {
+    const f = fakeFetch(200, row);
+    const before = Date.now();
+    const first = await fetchEventsWithMeta(wide, config, { fetchImpl: f });
+    const second = await fetchEventsWithMeta(wide, config, { fetchImpl: f });
+    expect(first.fetchedAt).toBeGreaterThanOrEqual(before);
+    expect(second.fetchedAt).toBe(first.fetchedAt);
+    expect((f as jest.Mock).mock.calls).toHaveLength(3);
+  });
+
+  it("reports the oldest day's fetch time for a mixed range", async () => {
+    const f = fakeFetch(200, row);
+    const old = await fetchEventsWithMeta({ from: "2026-01-01", to: "2026-01-01" }, config, { fetchImpl: f });
+    await new Promise((r) => setTimeout(r, 5));
+    const mixed = await fetchEventsWithMeta(wide, config, { fetchImpl: f });
+    expect(mixed.fetchedAt).toBe(old.fetchedAt);
+  });
+
+  it("force re-requests every day in the range exactly once", async () => {
+    const f = fakeFetch(200, row);
+    await fetchEventsWithMeta(wide, config, { fetchImpl: f });
+    expect((f as jest.Mock).mock.calls).toHaveLength(3);
+    await fetchEventsWithMeta(wide, config, { fetchImpl: f, force: true });
+    expect((f as jest.Mock).mock.calls).toHaveLength(6);
+    // The forced load repopulated the cache, so a plain call costs nothing.
+    await fetchEventsWithMeta(wide, config, { fetchImpl: f });
+    expect((f as jest.Mock).mock.calls).toHaveLength(6);
   });
 });

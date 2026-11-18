@@ -22,6 +22,8 @@ export interface DashboardQuery {
   window: WindowKey;
   /** UTC calendar day (YYYY-MM-DD); present only when `window` is `"day"`. */
   date?: string;
+  /** True when the caller asked to bypass the day cache (`refresh=1`). */
+  refresh: boolean;
   capability?: string;
   /** Environment the events are scoped to. */
   environment: Environment;
@@ -93,6 +95,7 @@ export function validateDashboardQuery(
     value: {
       window: window as WindowKey,
       date,
+      refresh: params.get("refresh") === "1",
       capability: capability || undefined,
       environment: environment as Environment,
       lbu: lbu as Lbu,

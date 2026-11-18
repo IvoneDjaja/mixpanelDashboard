@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchEvents, filterByProperties, MixpanelError } from "@/lib/mixpanel/client";
+import { fetchEventsWithMeta, filterByProperties, MixpanelError } from "@/lib/mixpanel/client";
 import { loadEventsFromFile, resolveDataSource } from "@/lib/mixpanel/fixture";
 import type { MixpanelConfig, MixpanelEvent } from "@/lib/mixpanel/types";
 import { dayStartEpoch, toDateString, WINDOWS, type DashboardQuery, type RollingWindowKey } from "@/lib/validation";
@@ -36,14 +36,15 @@ export const MAX_DURATION_SECONDS = 300;
  * @param query - Validated dashboard query.
  * @param nowEpochSeconds - Current time in epoch seconds.
  * @param config - The signed-in user's Mixpanel settings (see getCurrentConfig).
- * @returns The scoped events and the start of the window.
+ * @returns The scoped events, the start of the window, and `fetchedAt`: when the
+ *   data was fetched from Mixpanel (epoch milliseconds; "now" for local files).
  * @throws MixpanelError on configuration, auth, rate limit, timeout or upstream failures.
  */
 export async function loadScopedEvents(
   query: DashboardQuery,
   nowEpochSeconds: number,
   config: MixpanelConfig,
-): Promise<{ events: MixpanelEvent[]; since: number }> {
+): Promise<{ events: MixpanelEvent[]; since: number; fetchedAt: number }> {
   const filters = { Environment: query.environment, LBU: query.lbu };
   // A single day is fetched as exactly one export call (from = to = the day).
   const range =
@@ -53,17 +54,18 @@ export async function loadScopedEvents(
   const since = range
     ? dayStartEpoch(range.from)
     : nowEpochSeconds - WINDOWS[query.window as RollingWindowKey];
-  const loaded = resolveDataSource() === "file"
-    ? await loadEventsFromFile(process.env.MIXPANEL_EVENTS_FILE!)
-    : await fetchEvents(
+  const { events: loaded, fetchedAt } = resolveDataSource() === "file"
+    ? { events: await loadEventsFromFile(process.env.MIXPANEL_EVENTS_FILE!), fetchedAt: Date.now() }
+    : await fetchEventsWithMeta(
         range ?? { from: toDateString(since), to: toDateString(nowEpochSeconds) },
         { ...config, filters },
+        { force: query.refresh },
       );
   // The API path is already filtered server-side; this covers the file path and
   // keeps both sources scoped identically (PRD section 4).
   const events = filterByProperties(loaded, filters);
   logScopeDiagnostics(query, filters, since, nowEpochSeconds, loaded, events);
-  return { events, since };
+  return { events, since, fetchedAt };
 }
 
 /**

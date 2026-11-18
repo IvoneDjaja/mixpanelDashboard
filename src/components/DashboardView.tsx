@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DashboardData, UserEventsData } from "@/lib/analytics/dashboard";
 import type { UsersData } from "@/lib/analytics/users";
@@ -8,6 +8,7 @@ import { DEFAULT_ENVIRONMENT, DEFAULT_LBU, type Environment, type Lbu, type Wind
 import { fmtSeconds } from "@/lib/formatDuration";
 import { DEFAULT_PAGE_SIZE, type PageSize } from "@/lib/pagination";
 import { EventsTable } from "./EventsTable";
+import { DataFreshness } from "./DataFreshness";
 import { FilterBar, todayUtc, type FilterValues } from "./FilterBar";
 import { LeftPane } from "./LeftPane";
 import { PaginatedTable } from "./PaginatedTable";
@@ -27,12 +28,13 @@ const ENDPOINTS: Record<NavId, string> = { events: "/api/dashboard", users: "/ap
 /** API route returning the events of a single user. */
 const USER_EVENTS_ENDPOINT = "/api/users/events";
 
-type Status =
-  | { kind: "loading" }
-  | { kind: "error"; message: string }
+/** A loaded response; `fetchedAt` is when its data was fetched from Mixpanel (epoch ms). */
+type Loaded =
   | { kind: "ok"; item: "events"; data: DashboardData }
   | { kind: "ok"; item: "users"; data: UsersData }
   | { kind: "ok"; item: "userEvents"; data: UserEventsData };
+
+type Status = { kind: "loading" } | { kind: "error"; message: string } | (Loaded & { fetchedAt: number });
 
 /**
  * Dashboard page body: window, environment and LBU controls plus all report tables.
@@ -57,6 +59,13 @@ export function DashboardView() {
   const [activeItem, setActiveItem] = useState<NavId>(NAV_ITEMS[0].id);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
+  // Refresh re-runs the fetch effect for the applied filters and asks the server to
+  // bypass its day cache for that one request. The flag is consumed by the effect so
+  // paging, Apply and item changes never force a reload.
+  const [refreshTick, setRefreshTick] = useState(0);
+  const forceRefresh = useRef(false);
+  // True while any request is in flight, including reloads that keep old data on screen.
+  const [fetching, setFetching] = useState(true);
   const filtersDirty =
     pending.window !== applied.window ||
     (pending.window === "day" && pending.date !== applied.date) ||
@@ -68,10 +77,13 @@ export function DashboardView() {
     const { window, date, environment, lbu, page, pageSize } = applied;
     const params = new URLSearchParams({ window, page: String(page), pageSize: String(pageSize) });
     if (window === "day") params.set("date", date);
+    if (forceRefresh.current) params.set("refresh", "1");
+    forceRefresh.current = false;
     const item: NavId | "userEvents" = selectedUser ? "userEvents" : activeItem;
     if (selectedUser) params.set("userId", selectedUser);
     // Keep the previous data on screen while another page of the same item loads (no flicker).
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFetching(true);
     setStatus((prev) => (prev.kind === "ok" && prev.item === item ? prev : { kind: "loading" }));
     // Environment and LBU travel as headers so the URL carries only window/paging params.
     fetch(`${item === "userEvents" ? USER_EVENTS_ENDPOINT : ENDPOINTS[activeItem]}?${params}`, {
@@ -86,19 +98,23 @@ export function DashboardView() {
         }
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "Request failed");
+        const fetchedAt = typeof body.fetchedAt === "number" ? body.fetchedAt : Date.now();
         setStatus(
           item === "events"
-            ? { kind: "ok", item: "events", data: body as DashboardData }
+            ? { kind: "ok", item: "events", data: body as DashboardData, fetchedAt }
             : item === "users"
-              ? { kind: "ok", item: "users", data: body as UsersData }
-              : { kind: "ok", item: "userEvents", data: body as UserEventsData },
+              ? { kind: "ok", item: "users", data: body as UsersData, fetchedAt }
+              : { kind: "ok", item: "userEvents", data: body as UserEventsData, fetchedAt },
         );
       })
       .catch((e: Error) => {
         if (e.name !== "AbortError") setStatus({ kind: "error", message: e.message });
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFetching(false);
       });
     return () => controller.abort();
-  }, [applied, activeItem, selectedUser, router]);
+  }, [applied, activeItem, selectedUser, refreshTick, router]);
 
   /** Switches the left pane item, starting from page 1 with the applied filters. */
   const selectItem = (id: string) => {
@@ -129,13 +145,25 @@ export function DashboardView() {
   const data = status.kind === "ok" && status.item === "events" ? status.data : null;
   const usersData = status.kind === "ok" && status.item === "users" ? status.data : null;
   const userEventsData = status.kind === "ok" && status.item === "userEvents" ? status.data : null;
+  /** Reloads the applied view straight from Mixpanel, bypassing the server's day cache. */
+  const refresh = () => {
+    forceRefresh.current = true;
+    setRefreshTick((t) => t + 1);
+  };
   const filterBar = (
+    <>
     <FilterBar
       values={pending}
       dirty={filtersDirty}
       onChange={(update) => setPending((p) => ({ ...p, ...update }))}
       onApply={() => setApplied((a) => ({ ...a, ...pending, page: 1 }))}
     />
+    <DataFreshness
+      fetchedAt={status.kind === "ok" ? status.fetchedAt : null}
+      loading={fetching}
+      onRefresh={refresh}
+    />
+    </>
   );
 
   return (

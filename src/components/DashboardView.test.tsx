@@ -217,6 +217,45 @@ describe("DashboardView fetching", () => {
     expect(apply).toBeEnabled();
   });
 
+  it("shows when the data was fetched", async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ...payload, fetchedAt: Date.parse("2026-11-18T09:30:00Z") }) });
+    await loaded();
+    expect(screen.getByText(/Data as of/)).toHaveTextContent(new Date("2026-11-18T09:30:00Z").toLocaleTimeString());
+  });
+
+  it("Refresh refetches the applied view once with refresh=1, and paging does not", async () => {
+    await loaded();
+    expect(urls()[0].has("refresh")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(urls()[1].get("refresh")).toBe("1");
+    expect(urls()[1].get("window")).toBe("24h");
+    await screen.findByText("Page 1 of 3");
+    await userEvent.click(eventsNext());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(urls()[2].has("refresh")).toBe(false);
+  });
+
+  it("Refresh uses the applied filters, not unapplied edits", async () => {
+    await loaded();
+    await userEvent.click(screen.getByRole("button", { name: "Last hour" }));
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(urls()[1].get("window")).toBe("24h");
+  });
+
+  it("disables Refresh while a request is in flight", async () => {
+    let release!: () => void;
+    fetchMock.mockImplementationOnce(
+      () => new Promise((resolve) => { release = () => resolve({ ok: true, json: async () => payload }); }),
+    );
+    render(<DashboardView />);
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
+    release();
+    await screen.findByText("Page 1 of 3");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled());
+  });
+
   it("sends the date in day mode, only after Apply", async () => {
     await loaded();
     await userEvent.click(screen.getByRole("button", { name: "Day" }));

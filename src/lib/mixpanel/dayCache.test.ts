@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import {
   cachedDay,
+  cachedDayWithMeta,
   clearDayCache,
   dayCacheKey,
   isPastDay,
@@ -141,5 +142,50 @@ describe("cachedDay", () => {
     // The most recent key is still cached.
     await cachedDay(`key-${MAX_ENTRIES}`, PAST, loader, NOW);
     expect(loader).toHaveBeenCalledTimes(MAX_ENTRIES + 2);
+  });
+});
+
+describe("cachedDayWithMeta", () => {
+  it("reports when the day was fetched, and keeps that time on cache hits", async () => {
+    const loader = jest.fn().mockResolvedValue([event(1)]);
+    const key = dayCacheKey(PAST, config);
+    const first = await cachedDayWithMeta(key, PAST, loader, { now: NOW });
+    const second = await cachedDayWithMeta(key, PAST, loader, { now: NOW + 5_000 });
+    expect(first.fetchedAt).toBe(NOW);
+    expect(second.fetchedAt).toBe(NOW);
+    expect(loader).toHaveBeenCalledTimes(1);
+  });
+
+  it("force bypasses a fresh entry, replaces it and moves fetchedAt forward", async () => {
+    const loader = jest.fn().mockResolvedValueOnce([event(1)]).mockResolvedValueOnce([event(2)]);
+    const key = dayCacheKey(PAST, config);
+    await cachedDayWithMeta(key, PAST, loader, { now: NOW });
+    const forced = await cachedDayWithMeta(key, PAST, loader, { now: NOW + 1_000, force: true });
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(forced).toEqual({ events: [event(2)], fetchedAt: NOW + 1_000 });
+    // The next plain call is served from the replaced entry.
+    const after = await cachedDayWithMeta(key, PAST, loader, { now: NOW + 2_000 });
+    expect(after).toEqual({ events: [event(2)], fetchedAt: NOW + 1_000 });
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the previous entry when a forced reload fails", async () => {
+    const loader = jest
+      .fn()
+      .mockResolvedValueOnce([event(1)])
+      .mockRejectedValueOnce(new Error("rate limited"));
+    const key = dayCacheKey(PAST, config);
+    await cachedDayWithMeta(key, PAST, loader, { now: NOW });
+    await expect(cachedDayWithMeta(key, PAST, loader, { now: NOW + 1_000, force: true })).rejects.toThrow("rate limited");
+    const after = await cachedDayWithMeta(key, PAST, loader, { now: NOW + 2_000 });
+    expect(after).toEqual({ events: [event(1)], fetchedAt: NOW });
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not cache a failed forced load when there was no previous entry", async () => {
+    const loader = jest.fn().mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce([event(1)]);
+    const key = dayCacheKey(PAST, config);
+    await expect(cachedDayWithMeta(key, PAST, loader, { now: NOW, force: true })).rejects.toThrow("boom");
+    await expect(cachedDayWithMeta(key, PAST, loader, { now: NOW })).resolves.toMatchObject({ events: [event(1)] });
   });
 });

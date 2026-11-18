@@ -50,6 +50,15 @@ describe("validateDashboardQuery day window", () => {
   });
 });
 
+describe("validateDashboardQuery refresh", () => {
+  it("is true only for refresh=1", () => {
+    expect(q("refresh=1")).toMatchObject({ ok: true, value: { refresh: true } });
+    expect(q("")).toMatchObject({ ok: true, value: { refresh: false } });
+    expect(q("refresh=true")).toMatchObject({ ok: true, value: { refresh: false } });
+    expect(q("refresh=0")).toMatchObject({ ok: true, value: { refresh: false } });
+  });
+});
+
 describe("isValidDate and dayStartEpoch", () => {
   it("validates real calendar days only", () => {
     expect(isValidDate("2026-02-28")).toBe(true);

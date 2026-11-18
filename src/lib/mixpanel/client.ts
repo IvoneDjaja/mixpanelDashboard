@@ -1,5 +1,5 @@
 import "server-only";
-import { cachedDay, dayCacheKey } from "./dayCache";
+import { cachedDayWithMeta, dayCacheKey } from "./dayCache";
 import type { MixpanelConfig, MixpanelEvent, MixpanelRegion } from "./types";
 
 const EXPORT_HOSTS: Record<MixpanelRegion, string> = {
@@ -440,9 +440,57 @@ async function fetchDay(
  *
  * Days are served from the per-day cache (see dayCache), so only days that are
  * absent or stale reach Mixpanel. This matters because a cold range costs one
- * query per day against Mixpanel's limit of 60 export queries per hour: a
- * 30-day window would otherwise be affordable only twice an hour, and paging
- * the events table re-spent that cost on every click.
+ * query per day against Mixpanel's limit of 60 export queries per hour: paging
+ * the events table would otherwise re-spend that cost on every click.
+ * @param range - Inclusive dates in YYYY-MM-DD format.
+ * @param config - Mixpanel settings (defaults to environment).
+ * @param options - `force` reloads every day in the range, bypassing the cache;
+ *   `fetchImpl` is the fetch implementation, injectable for tests.
+ * @returns Events in the range, ordered by day, and `fetchedAt`: the epoch
+ *   milliseconds of the oldest day used, so the data is never reported fresher
+ *   than its stalest part.
+ * @throws MixpanelError on configuration, auth, rate limit, timeout or upstream failures.
+ */
+export async function fetchEventsWithMeta(
+  range: { from: string; to: string },
+  config: MixpanelConfig = getMixpanelConfig(),
+  options: { force?: boolean; fetchImpl?: typeof fetch } = {},
+): Promise<{ events: MixpanelEvent[]; fetchedAt: number }> {
+  const { force = false, fetchImpl = fetch } = options;
+  const days = eachDay(range);
+  const perDay: MixpanelEvent[][] = new Array(days.length);
+  const fetchedAts: number[] = new Array(days.length);
+
+  // A shared cursor keeps at most MAX_CONCURRENT_DAY_QUERIES requests in flight
+  // while preserving day order in `perDay`.
+  let cursor = 0;
+  const worker = async (): Promise<void> => {
+    for (let i = cursor++; i < days.length; i = cursor++) {
+      const day = days[i];
+      const loaded = await cachedDayWithMeta(
+        dayCacheKey(day, config),
+        day,
+        () => fetchDay(day, config, fetchImpl),
+        { force },
+      );
+      perDay[i] = loaded.events;
+      fetchedAts[i] = loaded.fetchedAt;
+    }
+  };
+  const workers = Array.from(
+    { length: Math.min(MAX_CONCURRENT_DAY_QUERIES, days.length) },
+    worker,
+  );
+  // Promise.all rejects on the first failure; every worker is awaited here, so
+  // no sibling rejection goes unhandled.
+  await Promise.all(workers);
+
+  return { events: perDay.flat(), fetchedAt: fetchedAts.length ? Math.min(...fetchedAts) : Date.now() };
+}
+
+/**
+ * Fetches raw events for a date range, served from the per-day cache where
+ * possible. See fetchEventsWithMeta for the caching and rate-limit rationale.
  * @param range - Inclusive dates in YYYY-MM-DD format.
  * @param config - Mixpanel settings (defaults to environment).
  * @param fetchImpl - Fetch implementation, injectable for tests.
@@ -454,27 +502,5 @@ export async function fetchEvents(
   config: MixpanelConfig = getMixpanelConfig(),
   fetchImpl: typeof fetch = fetch,
 ): Promise<MixpanelEvent[]> {
-  const days = eachDay(range);
-  const perDay: MixpanelEvent[][] = new Array(days.length);
-
-  // A shared cursor keeps at most MAX_CONCURRENT_DAY_QUERIES requests in flight
-  // while preserving day order in `perDay`.
-  let cursor = 0;
-  const worker = async (): Promise<void> => {
-    for (let i = cursor++; i < days.length; i = cursor++) {
-      const day = days[i];
-      perDay[i] = await cachedDay(dayCacheKey(day, config), day, () =>
-        fetchDay(day, config, fetchImpl),
-      );
-    }
-  };
-  const workers = Array.from(
-    { length: Math.min(MAX_CONCURRENT_DAY_QUERIES, days.length) },
-    worker,
-  );
-  // Promise.all rejects on the first failure; every worker is awaited here, so
-  // no sibling rejection goes unhandled.
-  await Promise.all(workers);
-
-  return perDay.flat();
+  return (await fetchEventsWithMeta(range, config, { fetchImpl })).events;
 }
