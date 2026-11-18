@@ -12,6 +12,8 @@ interface EventsTableProps {
   onPageSizeChange: (pageSize: PageSize) => void;
   /** Whether to show the User column; hidden when every row belongs to one user. Defaults to true. */
   showUser?: boolean;
+  /** When provided, the User cell is a button that calls this with the user's id. */
+  onSelectUser?: (userId: string) => void;
 }
 
 /**
@@ -30,7 +32,7 @@ function formatValue(value: unknown): string {
  * @param props - The events page and paging handlers.
  * @returns The events table with a pagination bar, or an empty-state message.
  */
-export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, showUser = true }: EventsTableProps) {
+export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, showUser = true, onSelectUser }: EventsTableProps) {
   // Remembers which row of which page is open; a different page of rows shows nothing expanded.
   const [expanded, setExpanded] = useState<{ rows: EventRow[]; index: number } | null>(null);
   if (events.total === 0) return <StateMessage kind="empty" message="No events in this window." />;
@@ -61,7 +63,25 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, 
                 >
                   <td>{new Date(e.time * 1000).toLocaleString()}</td><td>{e.event}</td><td>{e.page ?? "—"}</td>
                   <td>{e.durationSeconds === undefined ? "—" : fmtSeconds(e.durationSeconds)}</td>
-                  {showUser && <td>{e.userId ?? "—"}</td>}
+                  {showUser && (
+                    <td>
+                      {e.userId && onSelectUser ? (
+                        <button
+                          type="button"
+                          className="link-button"
+                          onClick={(c) => {
+                            c.stopPropagation();
+                            onSelectUser(e.userId as string);
+                          }}
+                          onKeyDown={(k) => k.stopPropagation()}
+                        >
+                          {e.userId}
+                        </button>
+                      ) : (
+                        (e.userId ?? "—")
+                      )}
+                    </td>
+                  )}
                 </tr>
                 {open && (
                   <tr className="event-details">

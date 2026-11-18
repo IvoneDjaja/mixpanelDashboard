@@ -136,6 +136,12 @@ export function DashboardView() {
     setApplied((a) => ({ ...a, page: 1 }));
   };
 
+  /** Opens a user's page from the events table, starting from page 1. */
+  const openUserFromEvents = (userId: string) => {
+    setActiveItem("users");
+    selectUser(userId);
+  };
+
   /** Returns from a user's events to the users list, starting from page 1. */
   const clearUser = () => {
     setSelectedUser(null);
@@ -205,7 +211,7 @@ export function DashboardView() {
             </section>
             <section className="wide">
               <h2>Events</h2>
-              <EventsTable events={data.events} pageSize={applied.pageSize}
+              <EventsTable events={data.events} pageSize={applied.pageSize} onSelectUser={openUserFromEvents}
                 onPageChange={(p) => setApplied((a) => ({ ...a, page: p }))}
                 onPageSizeChange={(n) => setApplied((a) => ({ ...a, pageSize: n, page: 1 }))} />
             </section>
