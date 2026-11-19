@@ -31,16 +31,16 @@ function formatValue(value: unknown): string {
 }
 
 /**
- * Server-paginated table of raw events, newest first. Clicking a row expands it
- * to show all of the event's properties.
+ * Server-paginated table of raw events, newest first. Clicking a row selects it and
+ * shows all of the event's properties in a panel beside the table.
  * @param props - The events page and paging handlers.
  * @returns The events table with a pagination bar, or an empty-state message.
  */
 export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, showUser = true, onSelectUser, eventType, onEventTypeChange }: EventsTableProps) {
-  // Remembers which row of which page is open; a different page of rows shows nothing expanded.
   // Text being typed; applied on Enter so each keystroke doesn't trigger a request.
   const [draft, setDraft] = useState(eventType);
-  const [expanded, setExpanded] = useState<{ rows: EventRow[]; index: number } | null>(null);
+  // Remembers which row of which page is selected; a different page of rows shows nothing selected.
+  const [selected, setSelected] = useState<{ rows: EventRow[]; index: number } | null>(null);
   const filter = (
     <form
       className="controls"
@@ -72,24 +72,26 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, 
       </>
     );
   }
-  const expandedIndex = expanded && expanded.rows === events.rows ? expanded.index : null;
-  const columns = showUser ? 5 : 4;
-  /** Expands row `i`, or collapses it when already open. */
-  const toggle = (i: number) => setExpanded(expandedIndex === i ? null : { rows: events.rows, index: i });
+  const selectedIndex = selected && selected.rows === events.rows ? selected.index : null;
+  const selectedEvent = selectedIndex === null ? null : events.rows[selectedIndex];
+  /** Selects row `i`, or clears the selection when it is already selected. */
+  const toggle = (i: number) => setSelected(selectedIndex === i ? null : { rows: events.rows, index: i });
   return (
     <>
       {filter}
+      <div className="events-layout">
+      <div className="events-main">
       <table>
         <thead><tr><th>Time</th><th>Event</th><th>Page</th><th>Time spent</th>{showUser && <th>User</th>}</tr></thead>
         <tbody>
           {events.rows.map((e, i) => {
-            const open = expandedIndex === i;
+            const open = selectedIndex === i;
             return (
               <Fragment key={`${e.time}-${e.userId ?? ""}-${i}`}>
                 <tr
-                  className={e.event === "error_encountered" ? "event-row event-error" : "event-row"}
+                  className={`event-row${e.event === "error_encountered" ? " event-error" : ""}${open ? " event-selected" : ""}`}
                   tabIndex={0}
-                  aria-expanded={open}
+                  aria-selected={open}
                   onClick={() => toggle(i)}
                   onKeyDown={(k) => {
                     if (k.key === "Enter" || k.key === " ") {
@@ -120,20 +122,6 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, 
                     </td>
                   )}
                 </tr>
-                {open && (
-                  <tr className="event-details">
-                    <td colSpan={columns}>
-                      <dl>
-                        {Object.entries(e.properties).map(([key, value]) => (
-                          <Fragment key={key}>
-                            <dt>{key}</dt>
-                            <dd>{formatValue(value)}</dd>
-                          </Fragment>
-                        ))}
-                      </dl>
-                    </td>
-                  </tr>
-                )}
               </Fragment>
             );
           })}
@@ -146,6 +134,23 @@ export function EventsTable({ events, pageSize, onPageChange, onPageSizeChange, 
         onPageChange={onPageChange}
         onPageSizeChange={onPageSizeChange}
       />
+      </div>
+      <aside className="event-panel" aria-label="Event properties">
+        <h3>Event properties</h3>
+        {selectedEvent ? (
+          <dl>
+            {Object.entries(selectedEvent.properties).map(([key, value]) => (
+              <Fragment key={key}>
+                <dt>{key}</dt>
+                <dd>{formatValue(value)}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        ) : (
+          <p className="event-panel-empty">Select an event to view its properties.</p>
+        )}
+      </aside>
+      </div>
     </>
   );
 }

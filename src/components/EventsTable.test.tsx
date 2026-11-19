@@ -47,4 +47,16 @@ describe("EventsTable user link", () => {
     fireEvent.click(apply);
     expect(onEventTypeChange).toHaveBeenCalledWith("click");
   });
+
+  it("shows the selected event's properties in the side panel and clears on a second click", () => {
+    render(<EventsTable events={events} pageSize={25 as never} onPageChange={jest.fn()} onPageSizeChange={jest.fn()} eventType="" onEventTypeChange={jest.fn()} />);
+    const panel = screen.getByRole("complementary", { name: "Event properties" });
+    expect(panel).toHaveTextContent("Select an event to view its properties.");
+    fireEvent.click(screen.getByText("page_viewed"));
+    expect(panel).toHaveTextContent("a");
+    expect(panel).toHaveTextContent("1");
+    expect(panel).not.toHaveTextContent("Select an event");
+    fireEvent.click(screen.getByText("page_viewed"));
+    expect(panel).toHaveTextContent("Select an event to view its properties.");
+  });
 });

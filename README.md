@@ -7,7 +7,7 @@ A web dashboard that shows how customers use the Pruservices self-service portal
 - **Events:** most and least visited pages, time on page, and a table of raw events with their properties.
 - **Users:** the most recently seen users, with each user's events and most and least visited pages.
 
-In both events tables, clicking a user opens that user's page, an "Event type" box filters rows by event name (case-insensitive, applied with Enter or its Apply button), and `error_encountered` rows are shaded light red.
+In both events tables, clicking a row shows all of its properties in a panel beside the table, clicking a user opens that user's page, an "Event type" box filters rows by event name (case-insensitive, applied with Enter or its Apply button), and `error_encountered` rows are shaded light red.
 
 Every view can be scoped by Environment and LBU, and by a time range: last hour, last 24 hours or one chosen day. Each page shows when its data was fetched, and a Refresh button reloads it.
 

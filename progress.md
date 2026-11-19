@@ -18,7 +18,7 @@ Built from `git log` (2026-11-07 to 2026-11-19). Items are checked only when a c
 
 Next.js + TypeScript + Jest. Server-side Mixpanel client; every view is scoped by Environment and LBU.
 
-- [x] **Events**: most/least visited pages, time on page, paginated raw events table with expandable properties and a time-spent column
+- [x] **Events**: most/least visited pages, time on page, paginated raw events table with a properties side panel for the selected event and a time-spent column
 - [x] **Users**: most recent users, with a per-user events table and that user's most/least visited pages
 - [x] **Time range**: Last hour, Last 24 hours, or a single UTC day with a date picker and prev/next arrows
 - [x] **Filters**: Environment dropdown, free-text LBU, Apply button (red); edits never fetch until Apply
