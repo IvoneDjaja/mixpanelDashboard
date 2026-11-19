@@ -2,7 +2,7 @@
 
 AI usage for each task is logged in [AI_USAGE.md](AI_USAGE.md). Link the entry when a task is done.
 
-Built from `git log` (2026-11-07 to 2026-11-18). Items are checked only when a commit shows the work; nothing here has been confirmed against live data.
+Built from `git log` (2026-11-07 to 2026-11-19). Items are checked only when a commit shows the work; nothing here has been confirmed against live data.
 
 ## Planning and requirements
 
@@ -25,6 +25,7 @@ Next.js + TypeScript + Jest. Server-side Mixpanel client; every view is scoped b
 - [x] **Freshness**: "Data as of" timestamp and a Refresh button that bypasses the cache
 - [x] **Login / logout**: service account credentials, project ID and region; server-side session
 - [x] **Left pane** navigation with Sign out
+- [x] **Events tables**: clickable user (opens the user's page), event type text filter with its own Apply button, light red `error_encountered` rows
 
 ## Work log
 
@@ -64,6 +65,15 @@ Next.js + TypeScript + Jest. Server-side Mixpanel client; every view is scoped b
 - `b339f06` Red Apply button
 - `fc73da9` Refresh button and "Data as of" timestamp
 - `e30239c` LBU as a text input instead of a dropdown
+
+### 2026-11-19: Events table features
+- `3b3fee4`, `3b41999`, `8883c86` Docs, loader, pagination input
+- `89d98b8`, `1378fc4`, `161d2d9` Fix environment, remove screenshot, remove the `page_viewed` filter in the query
+- `43baf04` User in the events table links to the user's page
+- `81ef1c2` Event type filter in the events and user events tables (`eventType` query parameter)
+- `1d3f3d4` Light red background for `error_encountered`
+- `ebb1c7f` Apply button for the event type filter
+- `dcc3a19` Clear login fields after sign out (autofill attributes on the login inputs)
 
 ## Open items
 

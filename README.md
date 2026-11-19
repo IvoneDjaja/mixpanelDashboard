@@ -7,6 +7,8 @@ A web dashboard that shows how customers use the Pruservices self-service portal
 - **Events:** most and least visited pages, time on page, and a table of raw events with their properties.
 - **Users:** the most recently seen users, with each user's events and most and least visited pages.
 
+In both events tables, clicking a user opens that user's page, an "Event type" box filters rows by event name (case-insensitive, applied with Enter or its Apply button), and `error_encountered` rows are shaded light red.
+
 Every view can be scoped by Environment and LBU, and by a time range: last hour, last 24 hours or one chosen day. Each page shows when its data was fetched, and a Refresh button reloads it.
 
 ## Getting started
@@ -19,15 +21,6 @@ npm run dev
 ```
 
 Open http://localhost:3000 and sign in with the service account, project ID and region. Credentials are kept in server memory for the session and are never stored in the browser.
-
-To try the dashboard without credentials, point it at a local Mixpanel export (JSON or JSONL):
-
-```bash
-MIXPANEL_DATA_SOURCE=api=file
-MIXPANEL_EVENTS_FILE=./events-export.json npm run dev
-```
-
-Copy `.env.example` for the available options. Note that its Mixpanel credential variables are no longer read, since credentials are entered at login. Only `MIXPANEL_DATA_SOURCE` and `MIXPANEL_EVENTS_FILE` are still used.
 
 ## Scripts
 

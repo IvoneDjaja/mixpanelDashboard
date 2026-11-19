@@ -137,3 +137,19 @@ history does not show who wrote what. Fields marked _not recorded_ need to be fi
 - My changes: _not recorded_
 - Verification: commit hashes and dates checked against `git log`
 - Commit: _not committed yet_
+
+## 2026-11-19 – Events table: user link, event type filter, error rows (`43baf04`, `81ef1c2`, `1d3f3d4`, `ebb1c7f`)
+- Tool: Claude Code (Sonnet 5.5)
+- Prompt: "Make user in events table clickable and redirect to user page", "Add event type filter as text input in events table and user events table", "if event is error_encountered, color row with light red", "add apply button in event type filter button"
+- AI output: the User cell as a button that opens the Users page for that user (click and key presses do not expand the row). An `eventType` query parameter, validated like `capability`, applied in `buildEventsPage` as a case-insensitive substring match, with a text input that applies on Enter. An `event-error` class for `error_encountered` rows. An Apply button for the filter, given the accessible name "Apply event type" so the existing "Apply" lookups in `DashboardView` tests still find one button.
+- My changes: asked for each change and its wording. I chose Enter-to-apply and later asked for an explicit Apply button.
+- Verification: `npm test` (237 pass), `npm run lint`, `tsc --noEmit`. Not checked in a browser. Two type and test fixes were needed along the way (a variable used before its declaration, and test lookups that matched two elements).
+- Commit: `43baf04`, `81ef1c2`, `1d3f3d4`, `ebb1c7f`
+
+## 2026-11-19 – Questions: 100 events a day, logout button, credentials after logout
+- Tool: Claude Code (Sonnet 5.5)
+- Prompt: "is api limited to 100 events a day?", "Add missing logout button in events left pane", "I can still see the login credentials after logging out"
+- AI output: confirmed from the code that there is no per-day event cap (the only 100 is Mixpanel's concurrent export limit; the app uses 3). Found that the "Sign out" button already exists in `LeftPane`; a CSS change to pin it was rejected, so nothing changed there. For the credentials, the app stores nothing in the browser, so the AI suggested browser or password-manager autofill and changed the login inputs' `autoComplete` attributes. The developer committed that change as `dcc3a19` ("Clear login fields after sign out").
+- My changes: rejected the CSS edit for the logout button and reported the credentials problem. Committed the AI's autofill change as `dcc3a19`.
+- Verification: `npm test`, `npm run lint`, `tsc --noEmit` passed after the autofill change; the cause of the visible credentials was not confirmed in a browser by the AI.
+- Commit: `dcc3a19`

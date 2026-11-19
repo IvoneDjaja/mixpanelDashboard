@@ -62,7 +62,7 @@ Every data view works the same way:
 | `GET /api/users` | Users page, most recent first | Same |
 | `GET /api/users/events?userId=` | One user's events and most/least visited pages | Same |
 
-Query parameters: `window=1h|24h|day`, `date=YYYY-MM-DD` (required for `day`), `capability`, `page`, `pageSize` (10, 25 or 50), `refresh=1`.
+Query parameters: `window=1h|24h|day`, `date=YYYY-MM-DD` (required for `day`), `capability`, `eventType`, `page`, `pageSize` (10, 25 or 50), `refresh=1`. `eventType` is trimmed, at most 100 characters, and matches events whose name contains it, ignoring case. It applies to `/api/dashboard` and `/api/users/events`; `/api/users` ignores it.
 
 ## Data sources
 
@@ -104,6 +104,8 @@ Pure functions in `src/lib/analytics/`; nothing here touches the network.
 `DashboardView` is the only stateful component. It holds pending and applied filters, the active left-pane item, the selected user, the load status and the `fetchedAt` time, and runs one effect that fetches the active item. Changing a filter never fetches by itself. A Refresh click sets a one-shot flag so only that request carries `refresh=1`.
 
 `FilterBar` edits pending values. `DataFreshness` shows "Data as of" and the Refresh button. `PaginatedTable` pages in the browser; `EventsTable` and `UsersTable` page on the server.
+
+`EventsTable` also owns the event type filter. The text being typed is local state; it is promoted to `applied.eventType` in `DashboardView` on Enter or the filter's own Apply button, which resets to page 1 and refetches. `applied.eventType` is cleared when the nav item, selected user or users list changes. The User cell is a button when `onSelectUser` is passed: on the Events page it switches to Users and selects that user (`openUserFromEvents`). Rows with `event === "error_encountered"` get the `event-error` class (light red).
 
 ## Error handling
 
