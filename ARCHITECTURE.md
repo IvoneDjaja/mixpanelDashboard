@@ -105,6 +105,8 @@ Pure functions in `src/lib/analytics/`; nothing here touches the network.
 
 `FilterBar` edits pending values. `DataFreshness` shows "Data as of" and the Refresh button. `PaginatedTable` pages in the browser; `EventsTable` and `UsersTable` page on the server.
 
+`EventsTable` shows a selected event's properties in a side panel (`aside.event-panel`, 340px, sticky) next to the table inside `.events-layout`. Clicking a row, or Enter/Space on it, selects it (`aria-selected`, red outline); clicking it again, or loading another page of rows, clears the selection. The table area `.events-main` can shrink and scrolls horizontally with a 560px table minimum, so the wider Events table (with the User column) never runs under the panel. The layout is for desktop widths only; there is no narrow-screen layout.
+
 `EventsTable` also owns the event type filter. The text being typed is local state; it is promoted to `applied.eventType` in `DashboardView` on Enter or the filter's own Apply button, which resets to page 1 and refetches. `applied.eventType` is cleared when the nav item, selected user or users list changes. The User cell is a button when `onSelectUser` is passed: on the Events page it switches to Users and selects that user (`openUserFromEvents`). Rows with `event === "error_encountered"` get the `event-error` class (light red).
 
 ## Error handling

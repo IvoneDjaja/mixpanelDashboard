@@ -74,6 +74,8 @@ Next.js + TypeScript + Jest. Server-side Mixpanel client; every view is scoped b
 - `1d3f3d4` Light red background for `error_encountered`
 - `ebb1c7f` Apply button for the event type filter
 - `dcc3a19` Clear login fields after sign out (autofill attributes on the login inputs)
+- `9220601` Event properties shown in a side panel next to the table instead of an expanding row
+- `28a914d` Fix the panel overlapping the User column in the Events table
 
 ## Open items
 

@@ -153,3 +153,12 @@ history does not show who wrote what. Fields marked _not recorded_ need to be fi
 - My changes: rejected the CSS edit for the logout button and reported the credentials problem. Committed the AI's autofill change as `dcc3a19`.
 - Verification: `npm test`, `npm run lint`, `tsc --noEmit` passed after the autofill change; the cause of the visible credentials was not confirmed in a browser by the AI.
 - Commit: `dcc3a19`
+
+## 2026-11-19 – Event properties side panel (`9220601`, `28a914d`)
+- Tool: Claude Code (Sonnet 5.5)
+- Prompt: "instead of clicking on event to see properties, can we have a section next to tables to view event properties", then "it looks okay on user events table but it is displayed above the user column in events table"
+- AI output: replaced the expanding row with a selected row and a side panel (`aside`, sticky, scrolls on its own) in `EventsTable`, plus a test. After the developer reported the overlap, a CSS fix: the table container can shrink and scrolls sideways, with a 560px table minimum.
+- My changes: asked for the panel and reported the overlap in the Events table, which the AI had not seen because it did not check the layout in a browser. Committed both changes. A first version of the new test asserted on properties the fixture did not have, and a bad edit left stray JSX; both were found by `tsc` and the tests and fixed before the commit.
+- Verification: `npm test` (238 pass), `npm run lint`, `tsc --noEmit`. The layout was checked by the developer in a browser, not by the AI. No narrow-screen layout.
+- Commit: `9220601`, `28a914d`
+
